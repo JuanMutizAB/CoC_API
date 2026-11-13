@@ -1,23 +1,27 @@
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Lista temporária de campanhas
+var campanhas = new List<Campanha>();
+
+// GET /campanhas: consulta as campanhas
+app.MapGet("/campanhas", () =>
 {
-    app.MapOpenApi();
-}
+    return Results.Ok(campanhas);
+});
 
-app.UseHttpsRedirection();
+// POST /campanhas: recebe e cadastra uma campanha
+app.MapPost("/campanhas", (Campanha campanha) =>
+{
+    if (string.IsNullOrWhiteSpace(campanha.Nome))
+    {
+        return Results.BadRequest("O nome é obrigatório.");
+    }
 
-app.UseAuthorization();
-
-app.MapControllers();
+    campanhas.Add(campanha);
+    return Results.Ok(campanha);
+});
 
 app.Run();
+
+public record Campanha(string Nome, string Mensagem);
