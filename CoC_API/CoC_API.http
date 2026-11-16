@@ -5,7 +5,7 @@ Content-Type: application/json
   "name": "Campanha de teste",
   "description": "Uma campanha para testar",
   "text": "Olá!",
-  "model": Enums.CampaignModel[0],
+  "model": 0,
   "status": 0,
   "publicationDate": null,
   "imageUrl": null,
