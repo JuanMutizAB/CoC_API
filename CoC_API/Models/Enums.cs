@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace CoC_API.Models
 {
 
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum CampaignStatus
     {
         New,

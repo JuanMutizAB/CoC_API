@@ -27,6 +27,7 @@ var users = new List<User>();
 app.MapCampaignEndpoints(campaigns);
 app.MapEditCampaignEndpoints(campaigns);
 app.MapGetCampaignByIdEndpoint(campaigns);
+app.MapCancelCampaignEndpoint(campaigns);
 app.MapUserEndpoints(users);
 
 app.MapPut("/users/{id:int}", UpdateUser);

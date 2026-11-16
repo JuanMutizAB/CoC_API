@@ -22,6 +22,7 @@ public static class CampaingEndPoints
                     request.ImageUrl,
                     request.UserId);
 
+                campaign.CheckStatus();
                 campaigns.Add(campaign);
                 return Results.Created($"/campaigns/{campaign.Id}", campaign);
             }
@@ -55,6 +56,7 @@ public static class CampaingEndPoints
                     request.ImageUrl,
                     request.UserId);
 
+                campaign.CheckStatus();
                 return Results.Ok(campaign);
             }
             catch (ArgumentException ex)
@@ -74,6 +76,27 @@ public static class CampaingEndPoints
                 return Results.NotFound();
     
             return Results.Ok(campaign);
+        });
+    }
+
+    public static void MapCancelCampaignEndpoint(this WebApplication app, List<Campaign> campaigns)
+    {
+        app.MapPut("/campaigns/{id:guid}/cancel", (Guid id) =>
+        {
+            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
+
+            if (campaign == null)
+                return Results.NotFound();
+
+            try
+            {
+                campaign.CancelCampaign();
+                return Results.Ok(campaign);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { erro = ex.Message });
+            }
         });
     }
 }

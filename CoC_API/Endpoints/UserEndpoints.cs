@@ -24,7 +24,7 @@ public static class UserEndpoints
                 );
 
                 users.Add(user);
-                return Results.Created($"/users/{user.Name}", user);
+                return Results.Created($"/users/{user.name}", user);
             }
             catch (Exception ex)
             {
