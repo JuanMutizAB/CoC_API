@@ -2,87 +2,89 @@ namespace CoC_API.Models
 {
     public class Campaign
     {
-        private string _name;
-        private string _description;
-        private string _text;
-        private CampaignModel _model;
-        private CampaignStatus _status;
-        private DateTimeOffset _createdAt;
-        private DateTimeOffset? _publicationDate;
-        private string? _imageUrl;
-        private int _userId;
+        private string name;
+        private string description;
+        private string text;
+        public string justificationText { get; private set; }
+        public Motivo motivo { get; private set; }
+        private CampaignModel model;
+        private CampaignStatus status;
+        private DateTimeOffset createdAt;
+        private DateTimeOffset? publicationDate;
+        private string? imageUrl;
+        private int userId;
 
         public Guid Id { get; private set; } = Guid.NewGuid();
 
         public string Name
         {
-            get => _name;
+            get => name;
             private set
             {
                 if (string.IsNullOrWhiteSpace(value))
                     throw new ArgumentException("Name cannot be empty.", nameof(Name));
 
-                _name = value.Trim();
+                name = value.Trim();
             }
         }
 
         public string Description
         {
-            get => _description;
+            get => description;
             private set
             {
                 if (string.IsNullOrWhiteSpace(value))
                     throw new ArgumentException("Description cannot be empty.", nameof(Description));
 
-                _description = value.Trim();
+                description = value.Trim();
             }
         }
 
         public string Text
         {
-            get => _text;
+            get => text;
             private set
             {
                 if (string.IsNullOrWhiteSpace(value))
                     throw new ArgumentException("Text cannot be empty.", nameof(Text));
 
-                _text = value.Trim();
+                text = value.Trim();
             }
         }
 
         public CampaignModel Model
         {
-            get => _model;
+            get => model;
             private set
             {
                 if (!Enum.IsDefined(typeof(CampaignModel), value))
                     throw new ArgumentOutOfRangeException(nameof(Model), "Campaign model is invalid.");
 
-                _model = value;
+                model = value;
             }
         }
 
         public CampaignStatus Status
         {
-            get => _status;
+            get =>status;
             private set
             {
                 if (!Enum.IsDefined(typeof(CampaignStatus), value))
                     throw new ArgumentOutOfRangeException(nameof(Status), "Campaign status is invalid.");
 
-                _status = value;
+                status = value;
             }
         }
 
         public DateTimeOffset CreatedAt
         {
-            get => _createdAt;
-            private set => _createdAt = value;
+            get => createdAt;
+            private set => createdAt = value;
         }
 
         public DateTimeOffset? PublicationDate
         {
-            get => _publicationDate;
+            get => publicationDate;
             private set
             {
                 if (Status == CampaignStatus.Scheduled && !value.HasValue)
@@ -91,25 +93,25 @@ namespace CoC_API.Models
                 if (value.HasValue && value.Value <= DateTimeOffset.UtcNow)
                     throw new ArgumentOutOfRangeException(nameof(PublicationDate), "Publication date must be in the future.");
 
-                _publicationDate = value;
+                publicationDate = value;
             }
         }
 
         public string? ImageUrl
         {
-            get => _imageUrl;
+            get => imageUrl;
             private set;
         }
 
         public int UserId
         {
-            get => _userId;
+            get => userId;
             private set
             {
                 if (value <= 0)
                     throw new ArgumentOutOfRangeException(nameof(UserId), "User ID must be greater than zero.");
 
-                _userId = value;
+                userId = value;
             }
         }
 
@@ -125,6 +127,8 @@ namespace CoC_API.Models
             PublicationDate = publicationDate;
             ImageUrl = imageUrl;
             UserId = userId;
+            justificationText = string.Empty;
+            motivo = Motivo.Other;
         }
 
         public void EditCampaign(string name, string description, string text, CampaignModel model,
@@ -171,6 +175,12 @@ namespace CoC_API.Models
             {
                 Status = CampaignStatus.Sending;
             }
+        }
+
+        public void SetMotivo(string justificationText, Motivo motivo)
+        {
+            this.justificationText = justificationText;
+            this.motivo = motivo;
         }
     }
 }
