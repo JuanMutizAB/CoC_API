@@ -9,23 +9,15 @@ namespace CoC_API.Models
     public class User
     {
 
-        private int _id;
-        private string _name;
-        private string _email;
-        private string _password;
-        private DateTime _birthDate;
-        private string _taxId;
-        private List<UserCaracteristics> _caracteristics;
-
         public int id
         {
-            get => _id;
-            set => _id = value;
+            get => id;
+            set => id = value;
         }
 
         public string name
         {
-            get => _name;
+            get => name;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
@@ -35,13 +27,13 @@ namespace CoC_API.Models
                 if (nameParts.Length < 2)
                     throw new FormatException("Name must contain at least a first and last name.");
 
-                _name = value;
+                name = value;
             }
         }
 
         private string email
         {
-            get => _email;
+            get => email;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
@@ -50,13 +42,13 @@ namespace CoC_API.Models
                 if (!value.Contains("@"))
                     throw new FormatException("Email must contain '@'.");
 
-                _email = value;
+                email = value;
             }
         }
 
         private string password
         {
-            get => _password;
+            get => password;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
@@ -77,25 +69,25 @@ namespace CoC_API.Models
                 if (!value.Any(c => !char.IsLetterOrDigit(c)))
                     throw new FormatException("Password must contain at least one special character.");
 
-                _password = HashPassword(value);
+                password = HashPassword(value);
             }
         }
 
         private DateTime birthDate
         {
-            get => _birthDate;
+            get => birthDate;
             set
             {
                 if (value > DateTime.Now)
                     throw new ArgumentOutOfRangeException(nameof(birthDate), "Birth date cannot be in the future.");
 
-                _birthDate = value;
+                birthDate = value;
             }
         }
 
         private string taxId
         {
-            get => _taxId;
+            get => taxId;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
@@ -104,14 +96,20 @@ namespace CoC_API.Models
                 if (value.Length != 9 || !value.All(char.IsDigit))
                     throw new FormatException("Tax ID must have exactly 9 digits.");
 
-                _taxId = value;
+                taxId = value;
             }
         }
 
         private List<UserCaracteristics> caracteristics
         {
-            get => _caracteristics;
-            set => _caracteristics = value;
+            get => caracteristics;
+            set => 
+            {
+                if (newCaracteristics.Any(value => !Enum.IsDefined(value)))
+                    throw new ArgumentException("Characteristics contain an invalid value.", nameof(newCaracteristics));
+
+                caracteristics = value;
+            }
         }
         
         public User(int id, string name, string email, string password, DateTime birthDate, string taxId, List<UserCaracteristics> caracteristics)
@@ -129,17 +127,23 @@ namespace CoC_API.Models
             }
         }
 
-        public void Update(string name, string email, string password, List<UserCaracteristics> caracteristics)
+        public void UpdateUser(string newName, string newEmail, string newPassword, List<UserCaracteristics> newCaracteristics)
         {
-            if (caracteristics is null || caracteristics.Any(value => !Enum.IsDefined(value)))
-                throw new ArgumentException("Characteristics contain an invalid value.", nameof(caracteristics));
+            if (newCaracteristics is null || newCaracteristics.Any(value => !Enum.IsDefined(value)))
+                throw new ArgumentException("Characteristics contain an invalid value.", nameof(newCaracteristics));
 
-            var updatedUser = new User(_id, name, email, password, _birthDate, _taxId, caracteristics);
+            this.name = newName;
+            this.email = newEmail;
+            this.password = newPassword;
+            this.caracteristics = newCaracteristics;
+        }
 
-            _name = updatedUser._name;
-            _email = updatedUser._email;
-            _password = updatedUser._password;
-            _caracteristics = updatedUser._caracteristics;
+        public void DeactivateUser()
+        {
+            if (!this.caracteristics.Contains(UserCaracteristics.isActive))
+                throw new InvalidOperationException("User is already deactivated.");
+
+            this.caracteristics.Remove(UserCaracteristics.isActive);
         }
 
         private string HashPassword(string password)
@@ -147,6 +151,8 @@ namespace CoC_API.Models
             byte[] bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(password));
             return Convert.ToHexString(bytes).ToLower();
         }
+
+
 
 
     }
