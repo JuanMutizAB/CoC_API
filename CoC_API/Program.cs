@@ -41,7 +41,7 @@ IResult UpdateUser(int id, EditUserRequest request)
 
     try
     {
-        user.Update(request.Name, request.Email, request.Password, request.caracteristics);
+        user.UpdateUser(request.Name, request.Email, request.Password, request.caracteristics);
         return Results.NoContent();
     }
     catch (Exception ex)
