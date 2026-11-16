@@ -57,13 +57,13 @@ app.MapPost("/users", (CreateUserRequest request) =>
     try
     {
         var user = new User(
-            request.id,
-            request.name,
-            request.email,
-            request.password,
-            request.birthDate,
-            request.taxId,
-            request.caracteristics
+            request.Id,
+            request.Name,
+            request.Email,
+            request.Password,
+            request.BirthDate,
+            request.TaxId,
+            request.Caracteristics
         );
 
         users.Add(user);
@@ -74,6 +74,27 @@ app.MapPost("/users", (CreateUserRequest request) =>
         return Results.BadRequest(new { erro = ex.Message });
     }
 });
+
+app.MapPut("/users/{id:int}", UpdateUser);
+
+IResult UpdateUser(int id, EditUserRequest request)
+{
+    var user = users.FirstOrDefault(user => user.id == id);
+    if (user is null)
+    {
+        return Results.NotFound();
+    }
+
+    try
+    {
+        user.Update(request.Name, request.Email, request.Password, request.caracteristics);
+        return Results.NoContent();
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { erro = ex.Message });
+    }
+}
 
 app.Run();
 

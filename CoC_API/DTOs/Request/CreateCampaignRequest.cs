@@ -2,7 +2,8 @@ namespace CoC_API.DTOs.Request;
 
 using CoC_API.Models;
 
-public record CreateCampaignRequest(
+public record CreateCampaignRequest
+(
     string Name,
     string Description,
     string Text,
