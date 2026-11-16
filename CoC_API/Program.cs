@@ -1,5 +1,6 @@
 using CoC_API.Models;
 using CoC_API.Endpoints;
+using CoC_API.DTOs.Request;
 
 var builder = WebApplication.CreateBuilder(args);
 
