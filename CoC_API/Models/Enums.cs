@@ -24,6 +24,7 @@ namespace CoC_API.Models
         LinkedIn
     }
 
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum UserCaracteristics
     {
         Admin,

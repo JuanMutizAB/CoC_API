@@ -142,6 +142,11 @@ namespace CoC_API.Models
             _caracteristics = updatedUser._caracteristics;
         }
 
+        public bool HasCharacteristic(UserCaracteristics characteristic)
+        {
+            return _caracteristics.Contains(characteristic);
+        }
+
         private string HashPassword(string password)
         {
             byte[] bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(password));

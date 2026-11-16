@@ -165,8 +165,8 @@ namespace CoC_API.Models
             if (Status == CampaignStatus.New && PublicationDate.HasValue)
             {
                 Status = CampaignStatus.Scheduled;
+                return;
             }
-
             if (Status == CampaignStatus.Scheduled && PublicationDate.HasValue && PublicationDate.Value <= now)
             {
                 Status = CampaignStatus.Sending;

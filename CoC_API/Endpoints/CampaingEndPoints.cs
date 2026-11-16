@@ -5,19 +5,27 @@ namespace CoC_API.Endpoints;
 
 public static class CampaingEndPoints
 {
-    public static void MapCampaignEndpoints(this WebApplication app, List<Campaign> campaigns)
+    public static void MapCampaignEndpoints(this WebApplication app, List<Campaign> campaigns, List<User> users)
     {
 
         app.MapPost("/campaigns", (CreateCampaignRequest request) =>
         {
+            var user = users.FirstOrDefault(user => user.id == request.UserId);
+            if (user is null)
+                return Results.NotFound(new { erro = "User not found." });
+
             try
             {
+                var status = user.HasCharacteristic(UserCaracteristics.isAprovando)
+                    ? CampaignStatus.InReview
+                    : request.Status;
+
                 var campaign = new Campaign(
                     request.Name,
                     request.Description,
                     request.Text,
                     request.Model,
-                    request.Status,
+                    status,
                     request.PublicationDate,
                     request.ImageUrl,
                     request.UserId);
@@ -35,7 +43,7 @@ public static class CampaingEndPoints
 
     public static void MapEditCampaignEndpoints(this WebApplication app, List<Campaign> campaigns)
     {
-        app.MapPut("/campaigns/{id:guid}", (Guid id, CreateCampaignRequest request) =>
+        app.MapPut("/campaigns/{id:guid}/edit", (Guid id, CreateCampaignRequest request) =>
         {
             var campaign = campaigns.FirstOrDefault(c => c.Id == id);
 
