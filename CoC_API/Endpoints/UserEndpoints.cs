@@ -15,6 +15,25 @@ public static class UserEndpoints
             return user is null ? Results.NotFound() : Results.Ok(user);
         });
 
+        app.MapPut("/users/{id:int}", (int id, EditUserRequest request) =>
+        {
+            var user = users.FirstOrDefault(user => user.id == id);
+            if (user is null)
+            {
+                return Results.NotFound();
+            }
+
+            try
+            {
+                user.UpdateUser(request.Name, request.Email, request.Password, request.caracteristics);
+                return Results.NoContent();
+            }
+            catch (Exception ex) when (ex is ArgumentException or FormatException)
+            {
+                return Results.BadRequest(new { erro = ex.Message });
+            }
+        });
+
         app.MapPost("/users", (CreateUserRequest request) =>
         {
             if (users.Any(user => user.id == request.Id))
