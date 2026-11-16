@@ -1,4 +1,5 @@
 using CoC_API.Models;
+using CoC_API.DTOs.Request;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,10 +10,15 @@ builder.Services.AddSwaggerGen();
 // Ativa OpenAPI
 builder.Services.AddOpenApi();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
+    app.UseSwagger();
+    app.UseSwaggerUI();
     app.MapOpenApi();
 }
 
@@ -73,24 +79,3 @@ app.MapPost("/users", (CreateUserRequest request) =>
 
 app.Run();
 
-// Records DTO
-public record CreateCampaignRequest(
-    string Name,
-    string Description,
-    string Text,
-    CampaignModel Model,
-    CampaignStatus Status,
-    DateTimeOffset? PublicationDate,
-    string? ImageUrl,
-    int UserId
-);
-
-public record CreateUserRequest(
-    int id,
-    string name,
-    string email,
-    string password,
-    DateTime birthDate,
-    string taxId,
-    List<UserCaracteristics>? caracteristics
-);
