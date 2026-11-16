@@ -165,6 +165,18 @@ namespace CoC_API.Models
             return caracteristics.Contains(characteristic);
         }
 
+        public bool MatchesEmail(string email)
+        {
+            return string.Equals(emailValue, email.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        public bool CheckPassword(string plainPassword)
+        {
+            var attempt = System.Text.Encoding.UTF8.GetBytes(HashPassword(plainPassword));
+            var stored = System.Text.Encoding.UTF8.GetBytes(passwordValue);
+            return CryptographicOperations.FixedTimeEquals(attempt, stored);
+        }
+
         private string HashPassword(string password)
         {
             byte[] bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(password));

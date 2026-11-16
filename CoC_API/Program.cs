@@ -28,6 +28,7 @@ app.MapEditCampaignEndpoints(campaigns);
 app.MapGetCampaignByIdEndpoint(campaigns);
 app.MapCancelCampaignEndpoint(campaigns);
 app.MapUserEndpoints(users);
+app.MapAuthEndpoints(users);
 
 app.Run();
 

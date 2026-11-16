@@ -55,3 +55,13 @@ Content-Type: application/json
   "taxId": "123456789",
   "caracteristics": ["isAprovado"]
 }
+
+###
+
+POST http://localhost:5062/login
+Content-Type: application/json
+
+{
+  "email": "guilhermeconde@gmail.com",
+  "password": "Password123!"
+}
