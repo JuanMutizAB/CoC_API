@@ -36,7 +36,7 @@ app.MapPost("/campaigns", (CreateCampaignRequest request) =>
             request.ImageUrl,
             request.UserId);
 
-        campaigns.Add(campaign);
+        campaign.Add(campaign);
         return Results.Created($"/campaigns/{campaign.Id}", campaign);
     }
     catch (Exception ex)
