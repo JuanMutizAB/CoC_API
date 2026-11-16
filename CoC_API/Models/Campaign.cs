@@ -43,17 +43,6 @@ namespace CoC_API.Models
                     throw new ArgumentOutOfRangeException(nameof(publicationDate), "Publication date must be in the future.");
             }
 
-            if (imageUrl != null)
-            {
-                if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var imageUri) ||
-                    (imageUri.Scheme != Uri.UriSchemeHttp && imageUri.Scheme != Uri.UriSchemeHttps))
-                {
-                    throw new ArgumentException("Image URL must be an absolute HTTP or HTTPS URL.", nameof(imageUrl));
-                }
-
-                imageUrl = imageUri.AbsoluteUri;
-            }
-
             Name = name.Trim();
             Description = description.Trim();
             Text = text.Trim();
@@ -65,14 +54,27 @@ namespace CoC_API.Models
             UserId = userId;
         }
 
-        public void CreateCampaign()
+        public void EditCampaign(string name, string description, string text, CampaignModel model,
+            CampaignStatus status, DateTimeOffset? publicationDate, string? imageUrl, int userId)
         {
-            
-        }
+            var editedCampaign = new Campaign(
+                name,
+                description,
+                text,
+                model,
+                status,
+                publicationDate,
+                imageUrl,
+                userId);
 
-        public void EditCAmpaign()
-        {
-
+            Name = editedCampaign.Name;
+            Description = editedCampaign.Description;
+            Text = editedCampaign.Text;
+            Model = editedCampaign.Model;
+            Status = editedCampaign.Status;
+            PublicationDate = editedCampaign.PublicationDate;
+            ImageUrl = editedCampaign.ImageUrl;
+            UserId = editedCampaign.UserId;
         }
 
         public void DeleteCampaign()

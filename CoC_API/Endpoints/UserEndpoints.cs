@@ -14,17 +14,17 @@ public static class UserEndpoints
             try
             {
                 var user = new User(
-                    request.id,
-                    request.name,
-                    request.email,
-                    request.password,
-                    request.birthDate,
-                    request.taxId,
-                    request.caracteristics ?? []
+                    request.Id,
+                    request.Name,
+                    request.Email,
+                    request.Password,
+                    request.BirthDate,
+                    request.TaxId,
+                    request.Caracteristics
                 );
 
                 users.Add(user);
-                return Results.Created($"/users/{user.name}", user);
+                return Results.Created($"/users/{user.Name}", user);
             }
             catch (Exception ex)
             {
