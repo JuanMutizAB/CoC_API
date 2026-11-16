@@ -7,11 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Ativa OpenAPI
-builder.Services.AddOpenApi();
-
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// Ativa OpenAPI (https://swagger.io/specification/) para gerar a documentação da API por agora então não é necessário,
+// mas futuramente será útil para gerar documentação da API e permitir que outros sistemas consumam a API de forma mais fácil.
+// builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
@@ -19,7 +17,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.MapOpenApi();
+    // app.MapOpenApi();
 }
 
 var campaigns = new List<Campaign>();
@@ -42,7 +40,7 @@ app.MapPost("/campaigns", (CreateCampaignRequest request) =>
             request.ImageUrl,
             request.UserId);
 
-        campaign.Add(campaign);
+        campaigns.Add(campaign);
         return Results.Created($"/campaigns/{campaign.Id}", campaign);
     }
     catch (Exception ex)
