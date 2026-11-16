@@ -1,5 +1,5 @@
 using CoC_API.Models;
-using CoC_API.DTOs.Request;
+using CoC_API.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,57 +23,9 @@ if (app.Environment.IsDevelopment())
 var campaigns = new List<Campaign>();
 var users = new List<User>();
 
-// --- Campanhas ---
-app.MapGet("/campaigns", () => Results.Ok(campaigns));
+app.MapCampaignEndpoints(campaigns);
 
-app.MapPost("/campaigns", (CreateCampaignRequest request) =>
-{
-    try
-    {
-        var campaign = new Campaign(
-            request.Name,
-            request.Description,
-            request.Text,
-            request.Model,
-            request.Status,
-            request.PublicationDate,
-            request.ImageUrl,
-            request.UserId);
-
-        campaigns.Add(campaign);
-        return Results.Created($"/campaigns/{campaign.Id}", campaign);
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { erro = ex.Message });
-    }
-});
-
-// --- Utilizadores ---
-app.MapGet("/users", () => Results.Ok(users));
-
-app.MapPost("/users", (CreateUserRequest request) =>
-{
-    try
-    {
-        var user = new User(
-            request.Id,
-            request.Name,
-            request.Email,
-            request.Password,
-            request.BirthDate,
-            request.TaxId,
-            request.Caracteristics
-        );
-
-        users.Add(user);
-        return Results.Created($"/users/{user.name}", user);
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { erro = ex.Message });
-    }
-});
+app.MapUserEndpoints(users);
 
 app.MapPut("/users/{id:int}", UpdateUser);
 
