@@ -136,13 +136,20 @@ namespace CoC_API.Models
 
         public void UpdateUser(string newName, string newEmail, string newPassword, List<UserCaracteristics> newCaracteristics)
         {
-            if (newCaracteristics is null || newCaracteristics.Any(value => !Enum.IsDefined(value)))
-                throw new ArgumentException("Characteristics contain an invalid value.", nameof(newCaracteristics));
 
-            this.name = newName;
-            this.email = newEmail;
-            this.password = newPassword;
-            this.caracteristics = newCaracteristics;
+            var updatedUser = new User(
+                id,
+                newName,
+                newEmail,
+                newPassword,
+                birthDate,
+                taxId,
+                newCaracteristics.ToList());
+
+            nameValue = updatedUser.nameValue;
+            emailValue = updatedUser.emailValue;
+            passwordValue = updatedUser.passwordValue;
+            caracteristicsValue = newCaracteristics.ToList();
         }
 
         public void DeactivateUser()

@@ -1,6 +1,5 @@
 using CoC_API.Models;
 using CoC_API.Endpoints;
-using CoC_API.DTOs.Request;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,27 +28,6 @@ app.MapEditCampaignEndpoints(campaigns);
 app.MapGetCampaignByIdEndpoint(campaigns);
 app.MapCancelCampaignEndpoint(campaigns);
 app.MapUserEndpoints(users);
-
-app.MapPut("/users/{id:int}", UpdateUser);
-
-IResult UpdateUser(int id, EditUserRequest request)
-{
-    var user = users.FirstOrDefault(user => user.id == id);
-    if (user is null)
-    {
-        return Results.NotFound();
-    }
-
-    try
-    {
-        user.UpdateUser(request.Name, request.Email, request.Password, request.caracteristics);
-        return Results.NoContent();
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new { erro = ex.Message });
-    }
-}
 
 app.Run();
 
