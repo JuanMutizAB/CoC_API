@@ -1,6 +1,43 @@
-@CoC_API_HostAddress = http://localhost:5062
+POST http://localhost:5062/campanhas
+Content-Type: application/json
 
-GET {{CoC_API_HostAddress}}/weatherforecast/
-Accept: application/json
+{
+  "name": "Campanha de teste",
+  "description": "Uma campanha para testar",
+  "text": "Olá!",
+  "model": Enums.CampaignModel[0],
+  "status": 0,
+  "publicationDate": null,
+  "imageUrl": null,
+  "userId": 1
+}
 
 ###
+
+POST http://localhost:5062/usuarios
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "Guilherme Conde",
+  "email": "guilherme.conde@example.com",
+  "password": "Password123!",
+  "birthDate": "1990-01-01",
+  "taxId": "123456789",
+  "caracteristics": []
+}
+
+###
+
+POST http://localhost:5062/usuarios
+Content-Type: application/json
+
+{
+  "id": 2,
+  "name": "Eduardo Fernando",
+  "email": "eduardo.fernando@example.com",
+  "password": "Password123!",
+  "birthDate": "1990-01-01",
+  "taxId": "123456789",
+  "caracteristics": []
+}
