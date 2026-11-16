@@ -3,6 +3,10 @@ using CoC_API.DTOs.Request;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Permitem gerar a descrição dos endpoints e mostrar o Swagger UI.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 // Ativa OpenAPI
 builder.Services.AddOpenApi();
 
@@ -18,17 +22,17 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-var campanhas = new List<Campaign>();
+var campaigns = new List<Campaign>();
 var users = new List<User>();
 
 // --- Campanhas ---
-app.MapGet("/campanhas", () => Results.Ok(campanhas));
+app.MapGet("/campaigns", () => Results.Ok(campaigns));
 
-app.MapPost("/campanhas", (CreateCampaignRequest request) =>
+app.MapPost("/campaigns", (CreateCampaignRequest request) =>
 {
     try
     {
-        var campanha = new Campaign(
+        var campaign = new Campaign(
             request.Name,
             request.Description,
             request.Text,
@@ -38,8 +42,8 @@ app.MapPost("/campanhas", (CreateCampaignRequest request) =>
             request.ImageUrl,
             request.UserId);
 
-        campanhas.Add(campanha);
-        return Results.Created($"/campanhas/{campanha.Id}", campanha);
+        campaign.Add(campaign);
+        return Results.Created($"/campaigns/{campaign.Id}", campaign);
     }
     catch (Exception ex)
     {
@@ -48,13 +52,13 @@ app.MapPost("/campanhas", (CreateCampaignRequest request) =>
 });
 
 // --- Utilizadores ---
-app.MapGet("/usuarios", () => Results.Ok(users));
+app.MapGet("/users", () => Results.Ok(users));
 
-app.MapPost("/usuarios", (CreateUserRequest request) =>
+app.MapPost("/users", (CreateUserRequest request) =>
 {
     try
     {
-        var usuario = new User(
+        var user = new User(
             request.id,
             request.name,
             request.email,
@@ -64,8 +68,8 @@ app.MapPost("/usuarios", (CreateUserRequest request) =>
             request.caracteristics
         );
 
-        users.Add(usuario);
-        return Results.Created($"/usuarios/{usuario.name}", usuario);
+        users.Add(user);
+        return Results.Created($"/users/{user.name}", user);
     }
     catch (Exception ex)
     {
