@@ -9,8 +9,19 @@ public static class UserEndpoints
     {
         app.MapGet("/users", () => Results.Ok(users));
 
+        app.MapGet("/users/{id:int}", (int id) =>
+        {
+            var user = users.FirstOrDefault(user => user.id == id);
+            return user is null ? Results.NotFound() : Results.Ok(user);
+        });
+
         app.MapPost("/users", (CreateUserRequest request) =>
         {
+            if (users.Any(user => user.id == request.Id))
+            {
+                return Results.Conflict(new { erro = "A user with this ID already exists." });
+            }
+
             try
             {
                 var user = new User(
@@ -24,7 +35,7 @@ public static class UserEndpoints
                 );
 
                 users.Add(user);
-                return Results.Created($"/users/{user.name}", user);
+                return Results.Created($"/users/{user.id}", user);
             }
             catch (Exception ex)
             {

@@ -8,16 +8,23 @@ namespace CoC_API.Models
 
     public class User
     {
+        private int idValue;
+        private string nameValue = string.Empty;
+        private string emailValue = string.Empty;
+        private string passwordValue = string.Empty;
+        private DateOnly birthDateValue;
+        private string taxIdValue = string.Empty;
+        private List<UserCaracteristics> caracteristicsValue = new();
 
         public int id
         {
-            get => id;
-            set => id = value;
+            get => idValue;
+            set => idValue = value;
         }
 
         public string name
         {
-            get => name;
+            get => nameValue;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
@@ -27,13 +34,13 @@ namespace CoC_API.Models
                 if (nameParts.Length < 2)
                     throw new FormatException("Name must contain at least a first and last name.");
 
-                name = value;
+                nameValue = value;
             }
         }
 
         private string email
         {
-            get => email;
+            get => emailValue;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
@@ -42,13 +49,13 @@ namespace CoC_API.Models
                 if (!value.Contains("@"))
                     throw new FormatException("Email must contain '@'.");
 
-                email = value;
+                emailValue = value;
             }
         }
 
         private string password
         {
-            get => password;
+            get => passwordValue;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
@@ -69,25 +76,25 @@ namespace CoC_API.Models
                 if (!value.Any(c => !char.IsLetterOrDigit(c)))
                     throw new FormatException("Password must contain at least one special character.");
 
-                password = HashPassword(value);
+                passwordValue = HashPassword(value);
             }
         }
 
-        private DateTime birthDate
+        private DateOnly birthDate
         {
-            get => birthDate;
+            get => birthDateValue;
             set
             {
-                if (value > DateTime.Now)
+                if (value > DateOnly.FromDateTime(DateTime.Today))
                     throw new ArgumentOutOfRangeException(nameof(birthDate), "Birth date cannot be in the future.");
 
-                birthDate = value;
+                birthDateValue = value;
             }
         }
 
         private string taxId
         {
-            get => taxId;
+            get => taxIdValue;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
@@ -96,23 +103,23 @@ namespace CoC_API.Models
                 if (value.Length != 9 || !value.All(char.IsDigit))
                     throw new FormatException("Tax ID must have exactly 9 digits.");
 
-                taxId = value;
+                taxIdValue = value;
             }
         }
 
         private List<UserCaracteristics> caracteristics
         {
-            get => caracteristics;
-            set => 
+            get => caracteristicsValue;
+            set
             {
-                if (newCaracteristics.Any(value => !Enum.IsDefined(value)))
-                    throw new ArgumentException("Characteristics contain an invalid value.", nameof(newCaracteristics));
+                if (value is null || value.Any(characteristic => !Enum.IsDefined(characteristic)))
+                    throw new ArgumentException("Characteristics contain an invalid value.", nameof(caracteristics));
 
-                caracteristics = value;
+                caracteristicsValue = value;
             }
         }
         
-        public User(int id, string name, string email, string password, DateTime birthDate, string taxId, List<UserCaracteristics> caracteristics)
+        public User(int id, string name, string email, string password, DateOnly birthDate, string taxId, List<UserCaracteristics>? caracteristics)
         {
             this.id = id;
             this.name = name;
@@ -148,7 +155,7 @@ namespace CoC_API.Models
 
         public bool HasCharacteristic(UserCaracteristics characteristic)
         {
-            return _caracteristics.Contains(characteristic);
+            return caracteristics.Contains(characteristic);
         }
 
         private string HashPassword(string password)

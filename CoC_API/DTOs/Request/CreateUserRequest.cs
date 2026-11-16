@@ -9,7 +9,7 @@ public record CreateUserRequest(
     string Name,
     string Email,
     string Password,
-    DateTime BirthDate,
+    DateOnly BirthDate,
     string TaxId,
     List<UserCaracteristics>? Caracteristics
 );
