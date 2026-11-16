@@ -2,6 +2,10 @@ using CoC_API.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Permitem gerar a descrição dos endpoints e mostrar o Swagger UI.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 // Ativa OpenAPI
 builder.Services.AddOpenApi();
 
