@@ -17,7 +17,7 @@ namespace CoC_API.Models
         private string _taxId;
         private List<UserCaracteristics> _caracteristics;
 
-        private int id
+        public int id
         {
             get => _id;
             set => _id = value;

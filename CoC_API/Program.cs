@@ -1,4 +1,5 @@
 using CoC_API.Models;
+using CoC_API.DTOs.Request;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,14 +7,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Ativa OpenAPI
-builder.Services.AddOpenApi();
+// Ativa OpenAPI (https://swagger.io/specification/) para gerar a documentação da API por agora então não é necessário,
+// mas futuramente será útil para gerar documentação da API e permitir que outros sistemas consumam a API de forma mais fácil.
+// builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    // app.MapOpenApi();
 }
 
 var campaigns = new List<Campaign>();
@@ -36,7 +40,7 @@ app.MapPost("/campaigns", (CreateCampaignRequest request) =>
             request.ImageUrl,
             request.UserId);
 
-        campaign.Add(campaign);
+        campaigns.Add(campaign);
         return Results.Created($"/campaigns/{campaign.Id}", campaign);
     }
     catch (Exception ex)
@@ -73,24 +77,3 @@ app.MapPost("/users", (CreateUserRequest request) =>
 
 app.Run();
 
-// Records DTO
-public record CreateCampaignRequest(
-    string Name,
-    string Description,
-    string Text,
-    CampaignModel Model,
-    CampaignStatus Status,
-    DateTimeOffset? PublicationDate,
-    string? ImageUrl,
-    int UserId
-);
-
-public record CreateUserRequest(
-    int id,
-    string name,
-    string email,
-    string password,
-    DateTime birthDate,
-    string taxId,
-    List<UserCaracteristics>? caracteristics
-);
