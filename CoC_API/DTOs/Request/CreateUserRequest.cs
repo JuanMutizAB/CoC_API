@@ -4,12 +4,13 @@ using System;
 using System.Collections.Generic;
 using CoC_API.Models;
 
-public record CreateUserRequest(
-    int id,
-    string name,
-    string email,
-    string password,
-    DateTime birthDate,
-    string taxId,
-    List<UserCaracteristics>? caracteristics
+public record CreateUserRequest
+(
+    int Id,
+    string Name,
+    string Email,
+    string Password,
+    DateTime BirthDate,
+    string TaxId,
+    List<UserCaracteristics>? Caracteristics
 );

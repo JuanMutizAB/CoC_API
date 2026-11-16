@@ -2,6 +2,7 @@ namespace CoC_API.Models
 {
     public class Campaign
     {
+        
         public string Name { get; private set; }
         public Guid Id { get; private set; } = Guid.NewGuid();
         public string Description { get; private set; }
@@ -70,7 +71,7 @@ namespace CoC_API.Models
             
         }
 
-        public void EditCAmpaign()
+        public void EditCampaign()
         {
 
         }
