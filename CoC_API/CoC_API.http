@@ -11,6 +11,20 @@ Content-Type: application/json
   "imageUrl": null,
   "userId": 1
 }
+###
+POST http://localhost:5062/campaigns
+Content-Type: application/json
+
+{
+  "name": "Campanha de teste",
+  "description": "Uma campanha para testar",
+  "text": "Olá!",
+  "model": 0,
+  "status": 0,
+  "publicationDate": null,
+  "imageUrl": null,
+  "userId": 2
+}
 
 ###
 
@@ -24,7 +38,7 @@ Content-Type: application/json
   "password": "Password123!",
   "birthDate": "1990-01-01",
   "taxId": "123456789",
-  "caracteristics": []
+  "caracteristics": ["isAprovando"]
 }
 
 ###
@@ -39,5 +53,5 @@ Content-Type: application/json
   "password": "Password123!",
   "birthDate": "1990-01-01",
   "taxId": "123456789",
-  "caracteristics": []
+  "caracteristics": ["isAprovado"]
 }
