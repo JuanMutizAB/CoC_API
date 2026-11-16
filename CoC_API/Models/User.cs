@@ -146,6 +146,11 @@ namespace CoC_API.Models
             this.caracteristics.Remove(UserCaracteristics.isActive);
         }
 
+        public bool HasCharacteristic(UserCaracteristics characteristic)
+        {
+            return _caracteristics.Contains(characteristic);
+        }
+
         private string HashPassword(string password)
         {
             byte[] bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(password));

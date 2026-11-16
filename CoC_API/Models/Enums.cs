@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace CoC_API.Models
 {
 
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum CampaignStatus
     {
         New,
@@ -21,6 +24,7 @@ namespace CoC_API.Models
         LinkedIn
     }
 
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum UserCaracteristics
     {
         Admin,
