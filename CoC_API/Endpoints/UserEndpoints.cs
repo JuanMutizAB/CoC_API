@@ -20,11 +20,11 @@ public static class UserEndpoints
                     request.Password,
                     request.BirthDate,
                     request.TaxId,
-                    request.Caracteristics ?? []
+                    request.Caracteristics
                 );
 
                 users.Add(user);
-                return Results.Created($"/users/{user.name}", user);
+                return Results.Created($"/users/{user.Name}", user);
             }
             catch (Exception ex)
             {

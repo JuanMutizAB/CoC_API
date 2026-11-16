@@ -4,8 +4,7 @@ using System;
 using System.Collections.Generic;
 using CoC_API.Models;
 
-public record CreateUserRequest
-(
+public record CreateUserRequest(
     int Id,
     string Name,
     string Email,
