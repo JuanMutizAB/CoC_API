@@ -25,6 +25,7 @@ var users = new List<User>();
 
 app.MapCampaignEndpoints(campaigns, users);
 app.MapUserEndpoints(users);
+app.MapAuthEndpoints(users);
 
 app.Run();
 
