@@ -7,6 +7,7 @@ public static class CampaingEndPoints
 {
     public static void MapCampaignEndpoints(this WebApplication app, List<Campaign> campaigns, List<User> users)
     {
+        app.MapGet("/campaigns", () => Results.Ok(campaigns));
 
         app.MapPost("/campaigns", (CreateCampaignRequest request) =>
         {
@@ -39,10 +40,8 @@ public static class CampaingEndPoints
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
-    }
 
-    public static void MapEditCampaignEndpoints(this WebApplication app, List<Campaign> campaigns)
-    {
+
         app.MapPut("/campaigns/{id:guid}/edit", (Guid id, CreateCampaignRequest request) =>
         {
             var campaign = campaigns.FirstOrDefault(c => c.Id == id);
@@ -72,10 +71,7 @@ public static class CampaingEndPoints
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
-    }
 
-    public static void MapGetCampaignByIdEndpoint(this WebApplication app, List<Campaign> campaigns)
-    {
         app.MapGet("/campaigns/{id:guid}", (Guid id) =>
         {
             var campaign = campaigns.FirstOrDefault(c => c.Id == id);
@@ -85,10 +81,8 @@ public static class CampaingEndPoints
     
             return Results.Ok(campaign);
         });
-    }
 
-    public static void MapCancelCampaignEndpoint(this WebApplication app, List<Campaign> campaigns)
-    {
+    
         app.MapPut("/campaigns/{id:guid}/cancel", (Guid id) =>
         {
             var campaign = campaigns.FirstOrDefault(c => c.Id == id);
@@ -105,6 +99,34 @@ public static class CampaingEndPoints
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
+        });
+
+        app.MapPut("/campaigns/{id:guid}/motivo", (Guid id, MotivoRequest request) =>
+        {
+            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
+
+            if (campaign == null)
+                return Results.NotFound();
+
+            try
+            {
+                campaign.SetMotivo(request.JustificationText, request.Motivo);
+                return Results.Ok(campaign);
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(new { erro = ex.Message });
+            }
+        });
+
+        app.MapGet("/campaigns/{id:guid}/motivo", (Guid id) =>
+        {
+            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
+
+            if (campaign == null)
+                return Results.NotFound();
+
+            return Results.Ok(new { JustificationText = campaign.justificationText, Motivo = campaign.motivo });
         });
     }
 }

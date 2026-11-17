@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 
 namespace CoC_API.Models
 {
-
     public class User
     {
         private int idValue;
