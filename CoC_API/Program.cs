@@ -24,9 +24,6 @@ var campaigns = new List<Campaign>();
 var users = new List<User>();
 
 app.MapCampaignEndpoints(campaigns, users);
-app.MapEditCampaignEndpoints(campaigns);
-app.MapGetCampaignByIdEndpoint(campaigns);
-app.MapCancelCampaignEndpoint(campaigns);
 app.MapUserEndpoints(users);
 app.MapAuthEndpoints(users);
 

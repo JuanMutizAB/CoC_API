@@ -14,7 +14,8 @@ namespace CoC_API.Models
         Approved,
         Canceled
     }
-
+    
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum CampaignModel
     {
         Email,
@@ -31,5 +32,15 @@ namespace CoC_API.Models
         isAprovando,
         isAprovado,
         isActive
+    }
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum Motivo
+    {
+        InadequateContent,
+        InadequateLanguage,
+        InadequateImage,
+        InadequateTargetAudience,
+        Other
     }
 }
