@@ -20,6 +20,9 @@ public static class UserClaimsPrincipalFactory
         if (user.HasCharacteristic(UserCaracteristics.Admin))
             claims.Add(new Claim(ClaimTypes.Role, nameof(UserCaracteristics.Admin)));
 
+        if (user.HasCharacteristic(UserCaracteristics.isAprovador))
+            claims.Add(new Claim(ClaimTypes.Role, nameof(UserCaracteristics.isAprovador)));
+
         return new ClaimsPrincipal(
             new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
     }

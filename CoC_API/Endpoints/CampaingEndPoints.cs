@@ -10,7 +10,17 @@ public static class CampaingEndPoints
     {
         // Endpoint to get all campaigns
 
-        app.MapGet("/campaigns", () => Results.Ok(campaigns));
+        app.MapGet("/campaigns", (ClaimsPrincipal principal) =>
+        {
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+
+            var visibleCampaigns = campaigns
+                .Where(campaign => CanViewCampaign(campaign, user, users))
+                .ToList();
+            return Results.Ok(visibleCampaigns);
+        });
 
         // Endpoint to create a new campaign
 
@@ -22,21 +32,24 @@ public static class CampaingEndPoints
 
             try
             {
+                var now = DateTimeOffset.UtcNow;
+                var publicationStatus = Campaign.ResolvePublicationStatus(request.PublicationDate, now);
                 var status = user.HasCharacteristic(UserCaracteristics.isAprovando)
                     ? CampaignStatus.InReview
-                    : request.Status;
+                    : publicationStatus;
 
                 var campaign = new Campaign(
                     request.Name,
                     request.Description,
-                    request.Text,
-                    request.Model,
+                    request.ModelMsg,
+                    request.Type,
                     status,
                     request.PublicationDate,
                     request.ImageUrl,
-                    user.id);
+                    user.id,
+                    now);
 
-                campaign.CheckStatus();
+                campaign.CheckStatus(now);
                 campaigns.Add(campaign);
                 return Results.Created($"/campaigns/{campaign.Id}", campaign);
             }
@@ -59,24 +72,33 @@ public static class CampaingEndPoints
                 return Results.Unauthorized();
             if (campaign.UserId != user.id)
                 return Results.Forbid();
+            if (campaign.Status is CampaignStatus.Canceled or CampaignStatus.Closed)
+                return Results.Conflict(new { erro = "This campaign can no longer be edited." });
+            if (campaign.Status == CampaignStatus.ForChange
+                && !user.HasCharacteristic(UserCaracteristics.isAprovando))
+                return Results.Forbid();
 
             try
             {
-                var status = user.HasCharacteristic(UserCaracteristics.isAprovando)
+                var now = DateTimeOffset.UtcNow;
+                var status = campaign.Status == CampaignStatus.ForChange
+                    && user.HasCharacteristic(UserCaracteristics.isAprovando)
                     ? CampaignStatus.InReview
-                    : request.Status;
+                    : campaign.Status;
+                if (status == CampaignStatus.Scheduled)
+                    status = Campaign.ResolvePublicationStatus(request.PublicationDate, now);
 
                 campaign.EditCampaign(
                     request.Name,
                     request.Description,
-                    request.Text,
-                    request.Model,
+                    request.ModelMsg,
+                    request.Type,
                     status,
                     request.PublicationDate,
                     request.ImageUrl,
-                    user.id);
+                    now);
 
-                campaign.CheckStatus();
+                campaign.CheckStatus(now);
                 return Results.Ok(campaign);
             }
             catch (Exception ex) when (ex is ArgumentException or FormatException)
@@ -87,15 +109,23 @@ public static class CampaingEndPoints
 
         // Endpoint to get a campaign by ID
 
-        app.MapGet("/campaigns/{id:guid}", (Guid id) =>
+        app.MapGet("/campaigns/{id:guid}", (Guid id, ClaimsPrincipal principal) =>
         {
             var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
-            return campaign is null ? Results.NotFound() : Results.Ok(campaign);
+            if (campaign is null)
+                return Results.NotFound();
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            return CanViewCampaign(campaign, user, users)
+                ? Results.Ok(campaign)
+                : Results.NotFound();
         });
 
         // Endpoint to cancel a campaign
 
-        app.MapPut("/campaigns/{id:guid}/cancel", (Guid id, ClaimsPrincipal principal) =>
+        app.MapPut("/campaigns/{id:guid}/cancel", (Guid id, MotivoRequest request, ClaimsPrincipal principal) =>
         {
             var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
             if (campaign is null)
@@ -109,18 +139,16 @@ public static class CampaingEndPoints
 
             try
             {
-                campaign.CancelCampaign();
+                campaign.CancelCampaign(request.Motivo, request.JustificationText);
                 return Results.Ok(campaign);
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
 
-        // Endpoint to set the motivo and justification text for a campaign
-
-        app.MapPut("/campaigns/{id:guid}/motivo", (Guid id, MotivoRequest request, ClaimsPrincipal principal) =>
+        app.MapPut("/campaigns/{id:guid}/review/approve", (Guid id, ClaimsPrincipal principal) =>
         {
             var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
             if (campaign is null)
@@ -129,24 +157,82 @@ public static class CampaingEndPoints
             var user = FindAuthenticatedUser(principal, users);
             if (user is null)
                 return Results.Unauthorized();
-            if (campaign.UserId != user.id)
+            if (!user.HasCharacteristic(UserCaracteristics.isAprovador))
                 return Results.Forbid();
 
             try
             {
-                campaign.SetMotivo(request.JustificationText, request.Motivo);
+                campaign.Approve();
                 return Results.Ok(campaign);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
 
-        app.MapGet("/campaigns/{id:guid}/motivo", (Guid id) =>
+        app.MapPut("/campaigns/{id:guid}/review/request-changes", (
+            Guid id,
+            RequestCampaignChangesRequest request,
+            ClaimsPrincipal principal) =>
         {
             var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
             if (campaign is null)
+                return Results.NotFound();
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            if (!user.HasCharacteristic(UserCaracteristics.isAprovador))
+                return Results.Forbid();
+
+            try
+            {
+                campaign.RequestChanges(request.JustificationText);
+                return Results.Ok(campaign);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return Results.BadRequest(new { erro = ex.Message });
+            }
+        });
+
+        app.MapPut("/campaigns/{id:guid}/review/reject", (
+            Guid id,
+            MotivoRequest request,
+            ClaimsPrincipal principal) =>
+        {
+            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            if (campaign is null)
+                return Results.NotFound();
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            if (!user.HasCharacteristic(UserCaracteristics.isAprovador))
+                return Results.Forbid();
+
+            try
+            {
+                campaign.Reject(request.Motivo, request.JustificationText);
+                return Results.Ok(campaign);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+            {
+                return Results.BadRequest(new { erro = ex.Message });
+            }
+        });
+
+        app.MapGet("/campaigns/{id:guid}/motivo", (Guid id, ClaimsPrincipal principal) =>
+        {
+            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            if (campaign is null)
+                return Results.NotFound();
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            if (!CanViewCampaign(campaign, user, users))
                 return Results.NotFound();
 
             return Results.Ok(new { JustificationText = campaign.justificationText, Motivo = campaign.motivo });
@@ -160,5 +246,17 @@ public static class CampaingEndPoints
             ? users.FirstOrDefault(user =>
                 user.id == id && user.HasCharacteristic(UserCaracteristics.isActive))
             : null;
+    }
+
+    private static bool CanViewCampaign(Campaign campaign, User user, List<User> users)
+    {
+        if (campaign.UserId == user.id)
+            return true;
+
+        return user.HasCharacteristic(UserCaracteristics.isAprovador)
+            && campaign.Status == CampaignStatus.InReview
+            && users.Any(candidate =>
+                candidate.id == campaign.UserId
+                && candidate.HasCharacteristic(UserCaracteristics.isAprovando));
     }
 }

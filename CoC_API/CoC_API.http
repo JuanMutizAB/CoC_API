@@ -37,7 +37,7 @@ Content-Type: application/json
   "password": "Password123!",
   "birthDate": "1990-01-01",
   "taxId": "987654321",
-  "caracteristics": ["isAprovado"]
+  "caracteristics": ["isAprovador"]
 }
 
 ###
@@ -57,9 +57,8 @@ Content-Type: application/json
 {
   "name": "Campanha de teste",
   "description": "Uma campanha para testar",
-  "text": "Olá!",
-  "model": "Email",
-  "status": "New",
-  "publicationDate": null,
+  "modelMsg": "Olá!",
+  "type": "Email",
+  "publicationDate": "2026-11-20T14:00:00Z",
   "imageUrl": null
 }
