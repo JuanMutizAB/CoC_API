@@ -128,7 +128,7 @@ namespace CoC_API.Models
             ImageUrl = imageUrl;
             UserId = userId;
             justificationText = string.Empty;
-            motivo = Motivo.Other;
+            motivo = Motivo.None;
         }
 
         public void EditCampaign(string name, string description, string text, CampaignModel model,
