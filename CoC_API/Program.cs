@@ -7,9 +7,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
-var users = new List<User>();
-var campaigns = new List<Campaign>();
-var sessions = new InMemoryUserSessionStore(users);
 var builder = WebApplication.CreateBuilder(args);
 
 // Regista o DbContext (connection string em appsettings.json -> ConnectionStrings:Default).
@@ -19,7 +16,7 @@ builder.Services.AddDbContext<CoC_DbContext>(options =>
 // Permitem gerar a descrição dos endpoints e mostrar o Swagger UI.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton(sessions);
+builder.Services.AddScoped<UserSessionStore>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -33,17 +30,22 @@ builder.Services
             : CookieSecurePolicy.Always;
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = false;
-        options.Events.OnValidatePrincipal = context =>
+        options.Events.OnValidatePrincipal = async context =>
         {
             var sessionId = context.Principal?.FindFirst(UserClaimsPrincipalFactory.SessionIdClaimType)?.Value;
-            if (sessionId is null || !sessions.TryGetActiveUser(sessionId, out var user) || user is null)
+            var sessions = context.HttpContext.RequestServices.GetRequiredService<UserSessionStore>();
+            var user = sessionId is null
+                ? null
+                : await sessions.TryGetActiveUserAsync(sessionId, context.HttpContext.RequestAborted);
+
+            if (user is null)
             {
                 context.RejectPrincipal();
-                return context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
             }
 
             context.ReplacePrincipal(UserClaimsPrincipalFactory.Create(user, sessionId));
-            return Task.CompletedTask;
         };
         options.Events.OnRedirectToLogin = context =>
         {
@@ -76,14 +78,28 @@ if (app.Environment.IsDevelopment())
         if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword))
             throw new InvalidOperationException("Both development admin email and password must be configured.");
 
-        users.Add(new User(
-            1,
-            "Development Admin",
-            adminEmail,
-            adminPassword,
-            new DateOnly(2000, 1, 1),
-            "000000000",
-            new List<UserCaracteristics> { UserCaracteristics.Admin }));
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        var normalizedEmail = adminEmail.Trim().ToUpperInvariant();
+        var admin = await db.Users.FirstOrDefaultAsync(
+            user => user.email.ToUpper() == normalizedEmail);
+
+        if (admin is null)
+        {
+            db.Users.Add(new User(
+                0,
+                "Development Admin",
+                adminEmail,
+                adminPassword,
+                new DateOnly(2000, 1, 1),
+                "000000000",
+                new List<UserCaracteristics> { UserCaracteristics.Admin }));
+            await db.SaveChangesAsync();
+        }
+        else if (!admin.HasCharacteristic(UserCaracteristics.Admin))
+        {
+            throw new InvalidOperationException("The configured development admin email belongs to a non-admin user.");
+        }
     }
 }
 

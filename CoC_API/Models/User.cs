@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json.Serialization;
 
 namespace CoC_API.Models
 {
@@ -20,7 +21,7 @@ namespace CoC_API.Models
             get => idValue;
             set
             {
-                if (value <= 0)
+                if (value < 0)
                     throw new ArgumentOutOfRangeException(nameof(id), "User ID must be greater than zero.");
 
                 idValue = value;
@@ -58,6 +59,7 @@ namespace CoC_API.Models
             }
         }
 
+        [JsonIgnore]
         public string password
         {
             get => passwordValue;
