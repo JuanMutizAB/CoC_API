@@ -8,7 +8,11 @@ public static class CampaingEndPoints
 {
     public static void MapCampaignEndpoints(this WebApplication app, List<Campaign> campaigns, List<User> users)
     {
+        // Endpoint to get all campaigns
+
         app.MapGet("/campaigns", () => Results.Ok(campaigns));
+
+        // Endpoint to create a new campaign
 
         app.MapPost("/campaigns", (CreateCampaignRequest request, ClaimsPrincipal principal) =>
         {
@@ -41,6 +45,8 @@ public static class CampaingEndPoints
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
+
+        // Endpoint to edit a campaign by ID
 
         app.MapPut("/campaigns/{id:guid}/edit", (Guid id, EditCampaignRequest request, ClaimsPrincipal principal) =>
         {
@@ -79,11 +85,15 @@ public static class CampaingEndPoints
             }
         });
 
+        // Endpoint to get a campaign by ID
+
         app.MapGet("/campaigns/{id:guid}", (Guid id) =>
         {
             var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
             return campaign is null ? Results.NotFound() : Results.Ok(campaign);
         });
+
+        // Endpoint to cancel a campaign
 
         app.MapPut("/campaigns/{id:guid}/cancel", (Guid id, ClaimsPrincipal principal) =>
         {
@@ -107,6 +117,8 @@ public static class CampaingEndPoints
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
+
+        // Endpoint to set the motivo and justification text for a campaign
 
         app.MapPut("/campaigns/{id:guid}/motivo", (Guid id, MotivoRequest request, ClaimsPrincipal principal) =>
         {
