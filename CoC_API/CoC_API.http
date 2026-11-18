@@ -32,7 +32,6 @@ POST http://localhost:5062/users
 Content-Type: application/json
 
 {
-  "id": 1,
   "name": "Guilherme Conde",
   "email": "guilherme.conde@example.com",
   "password": "Password123!",
@@ -47,7 +46,6 @@ POST http://localhost:5062/users
 Content-Type: application/json
 
 {
-  "id": 2,
   "name": "Eduardo Fernando",
   "email": "eduardo.fernando@example.com",
   "password": "Password123!",

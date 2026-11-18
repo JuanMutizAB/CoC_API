@@ -1,7 +1,12 @@
-using CoC_API.Models;
+using CoC_API.Context;
 using CoC_API.Endpoints;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Regista o DbContext (connection string em appsettings.json -> ConnectionStrings:Default).
+builder.Services.AddDbContext<CoC_DbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
 // Permitem gerar a descrição dos endpoints e mostrar o Swagger UI.
 builder.Services.AddEndpointsApiExplorer();
@@ -20,12 +25,8 @@ if (app.Environment.IsDevelopment())
     // app.MapOpenApi();
 }
 
-var campaigns = new List<Campaign>();
-var users = new List<User>();
-
-app.MapCampaignEndpoints(campaigns, users);
-app.MapUserEndpoints(users);
-app.MapAuthEndpoints(users);
+app.MapCampaignEndpoints();
+app.MapUserEndpoints();
+app.MapAuthEndpoints();
 
 app.Run();
-

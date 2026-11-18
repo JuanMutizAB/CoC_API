@@ -1,21 +1,23 @@
+using CoC_API.Context;
 using CoC_API.DTOs.Request;
 using CoC_API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace CoC_API.Endpoints;
 
 public static class CampaingEndPoints
 {
-    public static void MapCampaignEndpoints(this WebApplication app, List<Campaign> campaigns, List<User> users)
+    public static void MapCampaignEndpoints(this WebApplication app)
     {
         // Endpoint to get all campaigns
 
-        app.MapGet("/campaigns", () => Results.Ok(campaigns));
+        app.MapGet("/campaigns", async (CoC_DbContext db) => Results.Ok(await db.Campaigns.ToListAsync()));
 
         // Endpoint to create a new campaign
 
-        app.MapPost("/campaigns", (CreateCampaignRequest request) =>
+        app.MapPost("/campaigns", async (CreateCampaignRequest request, CoC_DbContext db) =>
         {
-            var user = users.FirstOrDefault(user => user.id == request.UserId);
+            var user = await db.Users.FindAsync(request.UserId);
             if (user is null)
                 return Results.NotFound(new { erro = "User not found." });
 
@@ -36,10 +38,11 @@ public static class CampaingEndPoints
                     request.UserId);
 
                 campaign.CheckStatus();
-                campaigns.Add(campaign);
+                db.Campaigns.Add(campaign);
+                await db.SaveChangesAsync();
                 return Results.Created($"/campaigns/{campaign.Id}", campaign);
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
@@ -47,9 +50,9 @@ public static class CampaingEndPoints
 
         // Endpoint to edit a campaign by ID
 
-        app.MapPut("/campaigns/{id:guid}/edit", (Guid id, CreateCampaignRequest request) =>
+        app.MapPut("/campaigns/{id:guid}/edit", async (Guid id, CreateCampaignRequest request, CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
 
             if (campaign == null)
             {
@@ -69,6 +72,7 @@ public static class CampaingEndPoints
                     request.UserId);
 
                 campaign.CheckStatus();
+                await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
             catch (ArgumentException ex)
@@ -79,21 +83,21 @@ public static class CampaingEndPoints
 
         // Endpoint to get a campaign by ID
 
-        app.MapGet("/campaigns/{id:guid}", (Guid id) =>
+        app.MapGet("/campaigns/{id:guid}", async (Guid id, CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
 
             if (campaign == null)
                 return Results.NotFound();
-    
+
             return Results.Ok(campaign);
         });
 
         // Endpoint to cancel a campaign
-    
-        app.MapPut("/campaigns/{id:guid}/cancel", (Guid id) =>
+
+        app.MapPut("/campaigns/{id:guid}/cancel", async (Guid id, CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
 
             if (campaign == null)
                 return Results.NotFound();
@@ -101,6 +105,7 @@ public static class CampaingEndPoints
             try
             {
                 campaign.CancelCampaign();
+                await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
             catch (InvalidOperationException ex)
@@ -111,9 +116,9 @@ public static class CampaingEndPoints
 
         // Endpoint to set the motivo and justification text for a campaign
 
-        app.MapPut("/campaigns/{id:guid}/motivo", (Guid id, MotivoRequest request) =>
+        app.MapPut("/campaigns/{id:guid}/motivo", async (Guid id, MotivoRequest request, CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
 
             if (campaign == null)
                 return Results.NotFound();
@@ -121,17 +126,18 @@ public static class CampaingEndPoints
             try
             {
                 campaign.SetMotivo(request.JustificationText, request.Motivo);
+                await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
 
-        app.MapGet("/campaigns/{id:guid}/motivo", (Guid id) =>
+        app.MapGet("/campaigns/{id:guid}/motivo", async (Guid id, CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
 
             if (campaign == null)
                 return Results.NotFound();
