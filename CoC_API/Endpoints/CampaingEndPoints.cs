@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CoC_API.DTOs.Request;
 using CoC_API.Models;
 
@@ -13,11 +14,11 @@ public static class CampaingEndPoints
 
         // Endpoint to create a new campaign
 
-        app.MapPost("/campaigns", (CreateCampaignRequest request) =>
+        app.MapPost("/campaigns", (CreateCampaignRequest request, ClaimsPrincipal principal) =>
         {
-            var user = users.FirstOrDefault(user => user.id == request.UserId);
+            var user = FindAuthenticatedUser(principal, users);
             if (user is null)
-                return Results.NotFound(new { erro = "User not found." });
+                return Results.Unauthorized();
 
             try
             {
@@ -33,13 +34,13 @@ public static class CampaingEndPoints
                     status,
                     request.PublicationDate,
                     request.ImageUrl,
-                    request.UserId);
+                    user.id);
 
                 campaign.CheckStatus();
                 campaigns.Add(campaign);
                 return Results.Created($"/campaigns/{campaign.Id}", campaign);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is ArgumentException or FormatException)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
@@ -47,31 +48,38 @@ public static class CampaingEndPoints
 
         // Endpoint to edit a campaign by ID
 
-        app.MapPut("/campaigns/{id:guid}/edit", (Guid id, CreateCampaignRequest request) =>
+        app.MapPut("/campaigns/{id:guid}/edit", (Guid id, EditCampaignRequest request, ClaimsPrincipal principal) =>
         {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
-
-            if (campaign == null)
-            {
+            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            if (campaign is null)
                 return Results.NotFound();
-            }
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            if (campaign.UserId != user.id)
+                return Results.Forbid();
 
             try
             {
+                var status = user.HasCharacteristic(UserCaracteristics.isAprovando)
+                    ? CampaignStatus.InReview
+                    : request.Status;
+
                 campaign.EditCampaign(
                     request.Name,
                     request.Description,
                     request.Text,
                     request.Model,
-                    request.Status,
+                    status,
                     request.PublicationDate,
                     request.ImageUrl,
-                    request.UserId);
+                    user.id);
 
                 campaign.CheckStatus();
                 return Results.Ok(campaign);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex) when (ex is ArgumentException or FormatException)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
@@ -81,22 +89,23 @@ public static class CampaingEndPoints
 
         app.MapGet("/campaigns/{id:guid}", (Guid id) =>
         {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
-
-            if (campaign == null)
-                return Results.NotFound();
-    
-            return Results.Ok(campaign);
+            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            return campaign is null ? Results.NotFound() : Results.Ok(campaign);
         });
 
         // Endpoint to cancel a campaign
-    
-        app.MapPut("/campaigns/{id:guid}/cancel", (Guid id) =>
-        {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
 
-            if (campaign == null)
+        app.MapPut("/campaigns/{id:guid}/cancel", (Guid id, ClaimsPrincipal principal) =>
+        {
+            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            if (campaign is null)
                 return Results.NotFound();
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            if (campaign.UserId != user.id)
+                return Results.Forbid();
 
             try
             {
@@ -111,19 +120,24 @@ public static class CampaingEndPoints
 
         // Endpoint to set the motivo and justification text for a campaign
 
-        app.MapPut("/campaigns/{id:guid}/motivo", (Guid id, MotivoRequest request) =>
+        app.MapPut("/campaigns/{id:guid}/motivo", (Guid id, MotivoRequest request, ClaimsPrincipal principal) =>
         {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
-
-            if (campaign == null)
+            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            if (campaign is null)
                 return Results.NotFound();
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            if (campaign.UserId != user.id)
+                return Results.Forbid();
 
             try
             {
                 campaign.SetMotivo(request.JustificationText, request.Motivo);
                 return Results.Ok(campaign);
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
@@ -131,12 +145,20 @@ public static class CampaingEndPoints
 
         app.MapGet("/campaigns/{id:guid}/motivo", (Guid id) =>
         {
-            var campaign = campaigns.FirstOrDefault(c => c.Id == id);
-
-            if (campaign == null)
+            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            if (campaign is null)
                 return Results.NotFound();
 
             return Results.Ok(new { JustificationText = campaign.justificationText, Motivo = campaign.motivo });
         });
+    }
+
+    private static User? FindAuthenticatedUser(ClaimsPrincipal principal, List<User> users)
+    {
+        var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(idValue, out var id)
+            ? users.FirstOrDefault(user =>
+                user.id == id && user.HasCharacteristic(UserCaracteristics.isActive))
+            : null;
     }
 }

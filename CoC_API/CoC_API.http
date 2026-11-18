@@ -1,38 +1,23 @@
-POST http://localhost:5062/campaigns
+@baseUrl = http://localhost:5062
+@adminEmail = {{$processEnv COC_API_DEV_ADMIN_EMAIL}}
+@adminPassword = {{$processEnv COC_API_DEV_ADMIN_PASSWORD}}
+
+# Configure both Development admin environment variables before starting the API.
+POST {{baseUrl}}/login
 Content-Type: application/json
 
 {
-  "name": "Campanha de teste",
-  "description": "Uma campanha para testar",
-  "text": "Olá!",
-  "model": 0,
-  "status": 0,
-  "publicationDate": null,
-  "imageUrl": null,
-  "userId": 1
-}
-###
-POST http://localhost:5062/campaigns
-Content-Type: application/json
-
-{
-  "name": "Campanha de teste",
-  "description": "Uma campanha para testar",
-  "text": "Olá!",
-  "model": 0,
-  "status": 0,
-  "publicationDate": null,
-  "imageUrl": null,
-  "userId": 2
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
 }
 
 ###
-
-POST http://localhost:5062/users
+# Only an authenticated admin can create users.
+POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "id": 1,
+  "id": 2,
   "name": "Guilherme Conde",
   "email": "guilherme.conde@example.com",
   "password": "Password123!",
@@ -42,26 +27,39 @@ Content-Type: application/json
 }
 
 ###
-
-POST http://localhost:5062/users
+POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "id": 2,
+  "id": 3,
   "name": "Eduardo Fernando",
   "email": "eduardo.fernando@example.com",
   "password": "Password123!",
   "birthDate": "1990-01-01",
-  "taxId": "123456789",
+  "taxId": "987654321",
   "caracteristics": ["isAprovado"]
 }
 
 ###
-
-POST http://localhost:5062/login
+POST {{baseUrl}}/login
 Content-Type: application/json
 
 {
   "email": "guilherme.conde@example.com",
   "password": "Password123!"
+}
+
+###
+# The campaign owner is taken from the authenticated session.
+POST {{baseUrl}}/campaigns
+Content-Type: application/json
+
+{
+  "name": "Campanha de teste",
+  "description": "Uma campanha para testar",
+  "text": "Olá!",
+  "model": "Email",
+  "status": "New",
+  "publicationDate": null,
+  "imageUrl": null
 }
