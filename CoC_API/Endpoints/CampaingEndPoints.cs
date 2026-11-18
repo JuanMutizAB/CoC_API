@@ -1,32 +1,56 @@
 using System.Security.Claims;
+using CoC_API.Context;
 using CoC_API.DTOs.Request;
 using CoC_API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace CoC_API.Endpoints;
 
 public static class CampaingEndPoints
 {
-    public static void MapCampaignEndpoints(this WebApplication app, List<Campaign> campaigns, List<User> users)
+    public static void MapCampaignEndpoints(this WebApplication app)
     {
-        // Endpoint to get all campaigns
-
-        app.MapGet("/campaigns", (ClaimsPrincipal principal) =>
+        app.MapGet("/campaigns", async (ClaimsPrincipal principal, CoC_DbContext db) =>
         {
-            var user = FindAuthenticatedUser(principal, users);
+            var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
 
-            var visibleCampaigns = campaigns
-                .Where(campaign => CanViewCampaign(campaign, user, users))
+            var ownCampaigns = await db.Campaigns
+                .Where(campaign => campaign.UserId == user.id)
+                .ToListAsync();
+
+            if (!user.HasCharacteristic(UserCaracteristics.isAprovador))
+                return Results.Ok(ownCampaigns);
+
+            var reviewCampaigns = await db.Campaigns
+                .Where(campaign => campaign.Status == CampaignStatus.InReview)
+                .ToListAsync();
+            var reviewOwnerIds = reviewCampaigns
+                .Select(campaign => campaign.UserId)
+                .Distinct()
+                .ToArray();
+            var approvingOwnerIds = (await db.Users
+                    .Where(candidate => reviewOwnerIds.Contains(candidate.id))
+                    .ToListAsync())
+                .Where(candidate => candidate.HasCharacteristic(UserCaracteristics.isAprovando))
+                .Select(candidate => candidate.id)
+                .ToHashSet();
+
+            var visibleCampaigns = ownCampaigns
+                .Concat(reviewCampaigns.Where(campaign => approvingOwnerIds.Contains(campaign.UserId)))
+                .DistinctBy(campaign => campaign.Id)
                 .ToList();
+
             return Results.Ok(visibleCampaigns);
         });
 
-        // Endpoint to create a new campaign
-
-        app.MapPost("/campaigns", (CreateCampaignRequest request, ClaimsPrincipal principal) =>
+        app.MapPost("/campaigns", async (
+            CreateCampaignRequest request,
+            ClaimsPrincipal principal,
+            CoC_DbContext db) =>
         {
-            var user = FindAuthenticatedUser(principal, users);
+            var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
 
@@ -49,25 +73,27 @@ public static class CampaingEndPoints
                     user.id,
                     now);
 
-                campaign.CheckStatus(now);
-                campaigns.Add(campaign);
+                db.Campaigns.Add(campaign);
+                await db.SaveChangesAsync();
                 return Results.Created($"/campaigns/{campaign.Id}", campaign);
             }
-            catch (Exception ex) when (ex is ArgumentException or FormatException)
+            catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
 
-        // Endpoint to edit a campaign by ID
-
-        app.MapPut("/campaigns/{id:guid}/edit", (Guid id, EditCampaignRequest request, ClaimsPrincipal principal) =>
+        app.MapPut("/campaigns/{id:guid}/edit", async (
+            Guid id,
+            EditCampaignRequest request,
+            ClaimsPrincipal principal,
+            CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
             if (campaign is null)
                 return Results.NotFound();
 
-            var user = FindAuthenticatedUser(principal, users);
+            var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
             if (campaign.UserId != user.id)
@@ -98,40 +124,44 @@ public static class CampaingEndPoints
                     request.ImageUrl,
                     now);
 
-                campaign.CheckStatus(now);
+                await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
-            catch (Exception ex) when (ex is ArgumentException or FormatException)
+            catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
         });
 
-        // Endpoint to get a campaign by ID
-
-        app.MapGet("/campaigns/{id:guid}", (Guid id, ClaimsPrincipal principal) =>
+        app.MapGet("/campaigns/{id:guid}", async (
+            Guid id,
+            ClaimsPrincipal principal,
+            CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
             if (campaign is null)
                 return Results.NotFound();
 
-            var user = FindAuthenticatedUser(principal, users);
+            var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
-            return CanViewCampaign(campaign, user, users)
+
+            return await CanViewCampaignAsync(campaign, user, db)
                 ? Results.Ok(campaign)
                 : Results.NotFound();
         });
 
-        // Endpoint to cancel a campaign
-
-        app.MapPut("/campaigns/{id:guid}/cancel", (Guid id, MotivoRequest request, ClaimsPrincipal principal) =>
+        app.MapPut("/campaigns/{id:guid}/cancel", async (
+            Guid id,
+            MotivoRequest request,
+            ClaimsPrincipal principal,
+            CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
             if (campaign is null)
                 return Results.NotFound();
 
-            var user = FindAuthenticatedUser(principal, users);
+            var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
             if (campaign.UserId != user.id)
@@ -140,6 +170,7 @@ public static class CampaingEndPoints
             try
             {
                 campaign.CancelCampaign(request.Motivo, request.JustificationText);
+                await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
@@ -148,21 +179,27 @@ public static class CampaingEndPoints
             }
         });
 
-        app.MapPut("/campaigns/{id:guid}/review/approve", (Guid id, ClaimsPrincipal principal) =>
+        app.MapPut("/campaigns/{id:guid}/review/approve", async (
+            Guid id,
+            ClaimsPrincipal principal,
+            CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
             if (campaign is null)
                 return Results.NotFound();
 
-            var user = FindAuthenticatedUser(principal, users);
+            var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
             if (!user.HasCharacteristic(UserCaracteristics.isAprovador))
+                return Results.Forbid();
+            if (!await IsReviewableCampaignAsync(campaign, db))
                 return Results.Forbid();
 
             try
             {
                 campaign.Approve();
+                await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
@@ -171,24 +208,28 @@ public static class CampaingEndPoints
             }
         });
 
-        app.MapPut("/campaigns/{id:guid}/review/request-changes", (
+        app.MapPut("/campaigns/{id:guid}/review/request-changes", async (
             Guid id,
             RequestCampaignChangesRequest request,
-            ClaimsPrincipal principal) =>
+            ClaimsPrincipal principal,
+            CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
             if (campaign is null)
                 return Results.NotFound();
 
-            var user = FindAuthenticatedUser(principal, users);
+            var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
             if (!user.HasCharacteristic(UserCaracteristics.isAprovador))
+                return Results.Forbid();
+            if (!await IsReviewableCampaignAsync(campaign, db))
                 return Results.Forbid();
 
             try
             {
                 campaign.RequestChanges(request.JustificationText);
+                await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
@@ -197,24 +238,28 @@ public static class CampaingEndPoints
             }
         });
 
-        app.MapPut("/campaigns/{id:guid}/review/reject", (
+        app.MapPut("/campaigns/{id:guid}/review/reject", async (
             Guid id,
             MotivoRequest request,
-            ClaimsPrincipal principal) =>
+            ClaimsPrincipal principal,
+            CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
             if (campaign is null)
                 return Results.NotFound();
 
-            var user = FindAuthenticatedUser(principal, users);
+            var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
             if (!user.HasCharacteristic(UserCaracteristics.isAprovador))
+                return Results.Forbid();
+            if (!await IsReviewableCampaignAsync(campaign, db))
                 return Results.Forbid();
 
             try
             {
                 campaign.Reject(request.Motivo, request.JustificationText);
+                await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
@@ -223,40 +268,63 @@ public static class CampaingEndPoints
             }
         });
 
-        app.MapGet("/campaigns/{id:guid}/motivo", (Guid id, ClaimsPrincipal principal) =>
+        app.MapGet("/campaigns/{id:guid}/motivo", async (
+            Guid id,
+            ClaimsPrincipal principal,
+            CoC_DbContext db) =>
         {
-            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            var campaign = await db.Campaigns.FindAsync(id);
             if (campaign is null)
                 return Results.NotFound();
 
-            var user = FindAuthenticatedUser(principal, users);
+            var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
-            if (!CanViewCampaign(campaign, user, users))
+            if (!await CanViewCampaignAsync(campaign, user, db))
                 return Results.NotFound();
 
-            return Results.Ok(new { JustificationText = campaign.justificationText, Motivo = campaign.motivo });
+            return Results.Ok(new
+            {
+                JustificationText = campaign.justificationText,
+                Motivo = campaign.motivo
+            });
         });
     }
 
-    private static User? FindAuthenticatedUser(ClaimsPrincipal principal, List<User> users)
+    private static async Task<User?> FindAuthenticatedUserAsync(ClaimsPrincipal principal, CoC_DbContext db)
     {
         var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(idValue, out var id)
-            ? users.FirstOrDefault(user =>
-                user.id == id && user.HasCharacteristic(UserCaracteristics.isActive))
+        if (!int.TryParse(idValue, out var userId))
+            return null;
+
+        var user = await db.Users.FindAsync(userId);
+        return user is not null && user.HasCharacteristic(UserCaracteristics.isActive)
+            ? user
             : null;
     }
 
-    private static bool CanViewCampaign(Campaign campaign, User user, List<User> users)
+    private static async Task<bool> CanViewCampaignAsync(
+        Campaign campaign,
+        User user,
+        CoC_DbContext db)
     {
         if (campaign.UserId == user.id)
             return true;
 
-        return user.HasCharacteristic(UserCaracteristics.isAprovador)
-            && campaign.Status == CampaignStatus.InReview
-            && users.Any(candidate =>
-                candidate.id == campaign.UserId
-                && candidate.HasCharacteristic(UserCaracteristics.isAprovando));
+        if (!user.HasCharacteristic(UserCaracteristics.isAprovador)
+            || campaign.Status != CampaignStatus.InReview)
+            return false;
+
+        var owner = await db.Users.FindAsync(campaign.UserId);
+        return owner is not null && owner.HasCharacteristic(UserCaracteristics.isAprovando);
+    }
+
+    private static async Task<bool> IsReviewableCampaignAsync(Campaign campaign, CoC_DbContext db)
+    {
+        if (campaign.Status != CampaignStatus.InReview)
+            return false;
+
+        var owner = await db.Users.FindAsync(campaign.UserId);
+        return owner is not null && owner.HasCharacteristic(UserCaracteristics.isAprovando);
     }
 }

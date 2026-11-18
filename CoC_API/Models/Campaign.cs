@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace CoC_API.Models
 {
     public class Campaign
@@ -40,6 +42,7 @@ namespace CoC_API.Models
             }
         }
 
+        [Column("Text")]
         public string ModelMsg
         {
             get => modelMsg;
@@ -52,6 +55,7 @@ namespace CoC_API.Models
             }
         }
 
+        [Column("Model")]
         public CampaignType Type
         {
             get => type;
@@ -110,6 +114,12 @@ namespace CoC_API.Models
 
                 userId = value;
             }
+        }
+
+        // Usado apenas pelo EF Core para materializar campanhas lidas da BD.
+        private Campaign()
+        {
+            name = description = modelMsg = string.Empty;
         }
 
         public Campaign(string name, string description, string modelMsg, CampaignType type,
@@ -188,12 +198,8 @@ namespace CoC_API.Models
 
         public void CheckStatus(DateTimeOffset now)
         {
-            if (Status == CampaignStatus.New)
+            if (Status is CampaignStatus.New or CampaignStatus.Scheduled)
                 Status = ResolvePublicationStatus(PublicationDate, now);
-
-            if (Status == CampaignStatus.Scheduled
-                && ToUtcMinuteTicks(PublicationDate) <= ToUtcMinuteTicks(now))
-                Status = CampaignStatus.Sending;
         }
 
         public static CampaignStatus ResolvePublicationStatus(DateTimeOffset publicationDate, DateTimeOffset now)
