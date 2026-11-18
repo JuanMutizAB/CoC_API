@@ -182,8 +182,5 @@ namespace CoC_API.Models
             return Convert.ToHexString(bytes).ToLower();
         }
 
-
-
-
     }
 }
