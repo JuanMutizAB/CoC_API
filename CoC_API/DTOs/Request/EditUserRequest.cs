@@ -9,5 +9,5 @@ public record EditUserRequest
     string Name,
     string Email,
     string Password,
-    List<UserCaracteristics> caracteristics
+    List<UserCaracteristics>? caracteristics
 );

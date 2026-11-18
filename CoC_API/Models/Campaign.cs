@@ -136,7 +136,7 @@ namespace CoC_API.Models
             ImageUrl = imageUrl;
             UserId = userId;
             justificationText = string.Empty;
-            motivo = Motivo.Other;
+            motivo = Motivo.None;
         }
 
         public void EditCampaign(string name, string description, string text, CampaignModel model,
@@ -187,6 +187,12 @@ namespace CoC_API.Models
 
         public void SetMotivo(string justificationText, Motivo motivo)
         {
+            if (justificationText is null)
+                throw new ArgumentNullException(nameof(justificationText));
+
+            if (!Enum.IsDefined(motivo))
+                throw new ArgumentOutOfRangeException(nameof(motivo), "Campaign reason is invalid.");
+
             this.justificationText = justificationText;
             this.motivo = motivo;
         }

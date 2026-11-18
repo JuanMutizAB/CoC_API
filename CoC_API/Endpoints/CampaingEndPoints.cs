@@ -19,7 +19,7 @@ public static class CampaingEndPoints
         {
             var user = await db.Users.FindAsync(request.UserId);
             if (user is null)
-                return Results.NotFound(new { erro = "User not found." });
+                return Results.Unauthorized();
 
             try
             {
@@ -35,7 +35,7 @@ public static class CampaingEndPoints
                     status,
                     request.PublicationDate,
                     request.ImageUrl,
-                    request.UserId);
+                    user.id);
 
                 campaign.CheckStatus();
                 db.Campaigns.Add(campaign);
@@ -57,25 +57,34 @@ public static class CampaingEndPoints
             if (campaign == null)
             {
                 return Results.NotFound();
-            }
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            if (campaign.UserId != user.id)
+                return Results.Forbid();
 
             try
             {
+                var status = user.HasCharacteristic(UserCaracteristics.isAprovando)
+                    ? CampaignStatus.InReview
+                    : request.Status;
+
                 campaign.EditCampaign(
                     request.Name,
                     request.Description,
                     request.Text,
                     request.Model,
-                    request.Status,
+                    status,
                     request.PublicationDate,
                     request.ImageUrl,
-                    request.UserId);
+                    user.id);
 
                 campaign.CheckStatus();
                 await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
-            catch (ArgumentException ex)
+            catch (Exception ex) when (ex is ArgumentException or FormatException)
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
@@ -99,8 +108,17 @@ public static class CampaingEndPoints
         {
             var campaign = await db.Campaigns.FindAsync(id);
 
-            if (campaign == null)
+        app.MapPut("/campaigns/{id:guid}/cancel", (Guid id, ClaimsPrincipal principal) =>
+        {
+            var campaign = campaigns.FirstOrDefault(candidate => candidate.Id == id);
+            if (campaign is null)
                 return Results.NotFound();
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            if (campaign.UserId != user.id)
+                return Results.Forbid();
 
             try
             {
@@ -122,6 +140,12 @@ public static class CampaingEndPoints
 
             if (campaign == null)
                 return Results.NotFound();
+
+            var user = FindAuthenticatedUser(principal, users);
+            if (user is null)
+                return Results.Unauthorized();
+            if (campaign.UserId != user.id)
+                return Results.Forbid();
 
             try
             {

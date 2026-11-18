@@ -10,6 +10,5 @@ public record CreateCampaignRequest
     CampaignModel Model,
     CampaignStatus Status,
     DateTimeOffset? PublicationDate,
-    string? ImageUrl,
-    int UserId
+    string? ImageUrl
 );

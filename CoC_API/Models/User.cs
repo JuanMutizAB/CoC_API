@@ -18,7 +18,13 @@ namespace CoC_API.Models
         public int id
         {
             get => idValue;
-            set => idValue = value;
+            set
+            {
+                if (value <= 0)
+                    throw new ArgumentOutOfRangeException(nameof(id), "User ID must be greater than zero.");
+
+                idValue = value;
+            }
         }
 
         public string name
@@ -48,7 +54,7 @@ namespace CoC_API.Models
                 if (!value.Contains("@"))
                     throw new FormatException("Email must contain '@'.");
 
-                emailValue = value;
+                emailValue = value.Trim();
             }
         }
 
@@ -137,8 +143,9 @@ namespace CoC_API.Models
             }
         }
 
-        public void UpdateUser(string newName, string newEmail, string newPassword, List<UserCaracteristics> newCaracteristics)
+        public void UpdateUser(string newName, string newEmail, string newPassword, List<UserCaracteristics>? newCaracteristics)
         {
+            var updatedCaracteristics = newCaracteristics?.ToList() ?? new List<UserCaracteristics>();
 
             var updatedUser = new User(
                 id,
@@ -147,12 +154,12 @@ namespace CoC_API.Models
                 newPassword,
                 birthDate,
                 taxId,
-                newCaracteristics.ToList());
+                updatedCaracteristics.ToList());
 
             nameValue = updatedUser.nameValue;
             emailValue = updatedUser.emailValue;
             passwordValue = updatedUser.passwordValue;
-            caracteristicsValue = newCaracteristics.ToList();
+            caracteristicsValue = updatedCaracteristics;
         }
 
         public void DeactivateUser()
@@ -168,9 +175,10 @@ namespace CoC_API.Models
             return caracteristics.Contains(characteristic);
         }
 
-        public bool MatchesEmail(string email)
+        public bool MatchesEmail(string? email)
         {
-            return string.Equals(emailValue, email.Trim(), StringComparison.OrdinalIgnoreCase);
+            return email is not null
+                && string.Equals(emailValue, email.Trim(), StringComparison.OrdinalIgnoreCase);
         }
 
         public bool CheckPassword(string plainPassword)

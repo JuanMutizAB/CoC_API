@@ -37,6 +37,7 @@ namespace CoC_API.Models
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum Motivo
     {
+        None,
         InadequateContent,
         InadequateLanguage,
         InadequateImage,

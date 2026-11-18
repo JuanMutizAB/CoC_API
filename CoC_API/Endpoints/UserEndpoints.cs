@@ -25,6 +25,9 @@ public static class UserEndpoints
                 return Results.NotFound();
             }
 
+            if (users.Any(existing => existing.id != id && existing.MatchesEmail(request.Email)))
+                return Results.Conflict(new { erro = "A user with this email already exists." });
+
             try
             {
                 user.UpdateUser(request.Name, request.Email, request.Password, request.caracteristics);
@@ -35,7 +38,7 @@ public static class UserEndpoints
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
-        });
+        }).RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
 
         app.MapPost("/users", async (CreateUserRequest request, CoC_DbContext db) =>
         {
@@ -65,6 +68,6 @@ public static class UserEndpoints
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
-        });
+        }).RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
     }
 }

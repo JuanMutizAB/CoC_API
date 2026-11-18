@@ -7,20 +7,21 @@ namespace CoC_API.Endpoints;
 
 public static class AuthEndpoints
 {
-    public static void MapAuthEndpoints(this WebApplication app)
+    public static void MapAuthEndpoints(
+        this WebApplication app,
+        List<User> users,
+        InMemoryUserSessionStore sessions)
     {
-        app.MapPost("/login", async (LoginRequest request, CoC_DbContext db) =>
+        app.MapPost("/login", async (LoginRequest request, HttpContext context) =>
         {
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-            {
                 return Results.BadRequest(new { erro = "Email and password are required." });
             }
 
             var email = request.Email.Trim();
             var user = await db.Users.FirstOrDefaultAsync(user => user.email == email);
 
-            // Same message for unknown user, wrong password and inactive user,
-            // so the response does not reveal which accounts exist.
+            var user = users.FirstOrDefault(candidate => candidate.MatchesEmail(request.Email));
             if (user is null
                 || !user.CheckPassword(request.Password)
                 || !user.HasCharacteristic(UserCaracteristics.isActive))
@@ -28,7 +29,21 @@ public static class AuthEndpoints
                 return Results.Json(new { erro = "Invalid credentials." }, statusCode: StatusCodes.Status401Unauthorized);
             }
 
+            var sessionId = sessions.CreateSession(user.id);
+            var principal = UserClaimsPrincipalFactory.Create(user, sessionId);
+            await context.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                principal,
+                new AuthenticationProperties { IsPersistent = false });
+
             return Results.Ok(new { id = user.id, name = user.name });
+        }).AllowAnonymous();
+
+        app.MapPost("/logout", async (HttpContext context) =>
+        {
+            sessions.RevokeSession(context.User.FindFirst(UserClaimsPrincipalFactory.SessionIdClaimType)?.Value);
+            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return Results.NoContent();
         });
     }
 }
