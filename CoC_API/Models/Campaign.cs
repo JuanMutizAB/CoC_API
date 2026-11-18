@@ -100,7 +100,7 @@ namespace CoC_API.Models
         public string? ImageUrl
         {
             get => imageUrl;
-            private set;
+            private set => imageUrl = value;
         }
 
         public int UserId
@@ -113,6 +113,14 @@ namespace CoC_API.Models
 
                 userId = value;
             }
+        }
+
+        // Usado apenas pelo EF Core para materializar campanhas lidas da BD.
+        // Sem ele o EF chamaria o construtor abaixo, que revalida tudo (ex.: a data de
+        // publicação tem de ser futura, o que falharia para campanhas já publicadas).
+        private Campaign()
+        {
+            name = description = text = justificationText = string.Empty;
         }
 
         public Campaign(string name, string description, string text, CampaignModel model,

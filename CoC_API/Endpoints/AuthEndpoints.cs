@@ -1,8 +1,7 @@
+using CoC_API.Context;
 using CoC_API.DTOs.Request;
 using CoC_API.Models;
-using CoC_API.Security;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 
 namespace CoC_API.Endpoints;
 
@@ -17,6 +16,10 @@ public static class AuthEndpoints
         {
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
                 return Results.BadRequest(new { erro = "Email and password are required." });
+            }
+
+            var email = request.Email.Trim();
+            var user = await db.Users.FirstOrDefaultAsync(user => user.email == email);
 
             var user = users.FirstOrDefault(candidate => candidate.MatchesEmail(request.Email));
             if (user is null

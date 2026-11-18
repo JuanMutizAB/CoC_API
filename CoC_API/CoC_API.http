@@ -17,7 +17,6 @@ POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "id": 2,
   "name": "Guilherme Conde",
   "email": "guilherme.conde@example.com",
   "password": "Password123!",
@@ -31,7 +30,6 @@ POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "id": 3,
   "name": "Eduardo Fernando",
   "email": "eduardo.fernando@example.com",
   "password": "Password123!",

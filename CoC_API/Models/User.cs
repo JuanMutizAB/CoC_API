@@ -7,13 +7,13 @@ namespace CoC_API.Models
 {
     public class User
     {
-        private int idValue;
-        private string nameValue = string.Empty;
-        private string emailValue = string.Empty;
-        private string passwordValue = string.Empty;
-        private DateOnly birthDateValue;
-        private string taxIdValue = string.Empty;
-        private List<UserCaracteristics> caracteristicsValue = new();
+        public int idValue;
+        public string nameValue = string.Empty;
+        public string emailValue = string.Empty;
+        public string passwordValue = string.Empty;
+        public DateOnly birthDateValue;
+        public string taxIdValue = string.Empty;
+        public List<UserCaracteristics> caracteristicsValue = new();
 
         public int id
         {
@@ -43,7 +43,7 @@ namespace CoC_API.Models
             }
         }
 
-        private string email
+        public string email
         {
             get => emailValue;
             set
@@ -58,7 +58,7 @@ namespace CoC_API.Models
             }
         }
 
-        private string password
+        public string password
         {
             get => passwordValue;
             set
@@ -85,7 +85,7 @@ namespace CoC_API.Models
             }
         }
 
-        private DateOnly birthDate
+        public DateOnly birthDate
         {
             get => birthDateValue;
             set
@@ -97,7 +97,7 @@ namespace CoC_API.Models
             }
         }
 
-        private string taxId
+        public string taxId
         {
             get => taxIdValue;
             set
@@ -112,7 +112,7 @@ namespace CoC_API.Models
             }
         }
 
-        private List<UserCaracteristics> caracteristics
+        public List<UserCaracteristics> caracteristics
         {
             get => caracteristicsValue;
             set
@@ -124,6 +124,10 @@ namespace CoC_API.Models
             }
         }
         
+        // Usado apenas pelo EF Core para materializar users lidos da BD.
+        // Sem ele o EF chamaria o construtor abaixo, que valida e volta a fazer hash da password.
+        private User() { }
+
         public User(int id, string name, string email, string password, DateOnly birthDate, string taxId, List<UserCaracteristics>? caracteristics)
         {
             this.id = id;
