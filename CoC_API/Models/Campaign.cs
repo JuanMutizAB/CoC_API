@@ -179,6 +179,12 @@ namespace CoC_API.Models
 
         public void SetMotivo(string justificationText, Motivo motivo)
         {
+            if (justificationText is null)
+                throw new ArgumentNullException(nameof(justificationText));
+
+            if (!Enum.IsDefined(motivo))
+                throw new ArgumentOutOfRangeException(nameof(motivo), "Campaign reason is invalid.");
+
             this.justificationText = justificationText;
             this.motivo = motivo;
         }
