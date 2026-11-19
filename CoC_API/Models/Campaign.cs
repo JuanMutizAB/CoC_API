@@ -1,18 +1,16 @@
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace CoC_API.Models
 {
     public class Campaign
     {
         private string name = string.Empty;
         private string description = string.Empty;
-        private string modelMsg = string.Empty;
-        public string? justificationText { get; private set; }
-        public Motivo? motivo { get; private set; }
-        private CampaignType type;
+        private string text = string.Empty;
+        public string justificationText { get; private set; }
+        public Motivo motivo { get; private set; }
+        private CampaignType model;
         private CampaignStatus status;
         private DateTimeOffset createdAt;
-        private DateTimeOffset publicationDate;
+        private DateTimeOffset? publicationDate;
         private string? imageUrl;
         private int userId;
 
@@ -42,29 +40,27 @@ namespace CoC_API.Models
             }
         }
 
-        [Column("Text")]
-        public string ModelMsg
+        public string Text
         {
-            get => modelMsg;
+            get => text;
             private set
             {
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new ArgumentException("Message cannot be empty.", nameof(ModelMsg));
+                    throw new ArgumentException("Text cannot be empty.", nameof(Text));
 
-                modelMsg = value.Trim();
+                text = value.Trim();
             }
         }
 
-        [Column("Model")]
-        public CampaignType Type
+        public CampaignType Model
         {
-            get => type;
+            get => model;
             private set
             {
                 if (!Enum.IsDefined(typeof(CampaignType), value))
-                    throw new ArgumentOutOfRangeException(nameof(Type), "Campaign type is invalid.");
+                    throw new ArgumentOutOfRangeException(nameof(Model), "Campaign model is invalid.");
 
-                type = value;
+                model = value;
             }
         }
 
@@ -86,13 +82,16 @@ namespace CoC_API.Models
             private set => createdAt = value;
         }
 
-        public DateTimeOffset PublicationDate
+        public DateTimeOffset? PublicationDate
         {
             get => publicationDate;
             private set
             {
-                if (value == default)
-                    throw new ArgumentOutOfRangeException(nameof(PublicationDate), "A publication date is required.");
+                if (Status == CampaignStatus.Scheduled && !value.HasValue)
+                    throw new ArgumentException("A publication date is required for scheduled campaigns.", nameof(PublicationDate));
+
+                if (value.HasValue && value.Value <= DateTimeOffset.UtcNow)
+                    throw new ArgumentOutOfRangeException(nameof(PublicationDate), "Publication date must be in the future.");
 
                 publicationDate = value;
             }
@@ -116,129 +115,120 @@ namespace CoC_API.Models
             }
         }
 
-        // Usado apenas pelo EF Core para materializar campanhas lidas da BD.
-        private Campaign()
+        public Campaign(string name, string description, string text, CampaignType model,
+            CampaignStatus status, DateTimeOffset? publicationDate, string? imageUrl, int userId)
         {
-            name = description = modelMsg = string.Empty;
-        }
-
-        public Campaign(string name, string description, string modelMsg, CampaignType type,
-            CampaignStatus status, DateTimeOffset publicationDate, string? imageUrl, int userId,
-            DateTimeOffset validationTime)
-        {
-            ResolvePublicationStatus(publicationDate, validationTime);
             Name = name;
             Description = description;
-            ModelMsg = modelMsg;
-            Type = type;
+            Text = text;
+            Model = model;
             Status = status;
             CreatedAt = DateTimeOffset.UtcNow;
             PublicationDate = publicationDate;
             ImageUrl = imageUrl;
             UserId = userId;
-            justificationText = null;
-            motivo = null;
+            justificationText = string.Empty;
+            motivo = Motivo.None;
         }
 
-        public void EditCampaign(string name, string description, string modelMsg, CampaignType type,
-            CampaignStatus status, DateTimeOffset publicationDate, string? imageUrl, DateTimeOffset validationTime)
+        public void EditCampaign(string name, string description, string text, CampaignType model,
+            CampaignStatus status, DateTimeOffset? publicationDate, string? imageUrl, int userId)
         {
+            if (Status == CampaignStatus.Sending)
+                throw new InvalidOperationException("A campaign cannot be edited while it is being published.");
+
             var editedCampaign = new Campaign(
                 name,
                 description,
-                modelMsg,
-                type,
+                text,
+                model,
                 status,
                 publicationDate,
                 imageUrl,
-                userId,
-                validationTime);
+                userId);
 
             Name = editedCampaign.Name;
             Description = editedCampaign.Description;
-            ModelMsg = editedCampaign.ModelMsg;
-            Type = editedCampaign.Type;
+            Text = editedCampaign.Text;
+            Model = editedCampaign.Model;
             Status = editedCampaign.Status;
             PublicationDate = editedCampaign.PublicationDate;
             ImageUrl = editedCampaign.ImageUrl;
+            UserId = editedCampaign.UserId;
         }
 
-        public void Approve()
+        public void CancelCampaign()
         {
-            if (Status != CampaignStatus.InReview)
-                throw new InvalidOperationException("Only campaigns in review can be approved.");
+            if (Status == CampaignStatus.Canceled)
+                throw new InvalidOperationException("Campaign is already canceled.");
+            if (Status == CampaignStatus.Sending)
+                throw new InvalidOperationException("A campaign cannot be canceled while it is being published.");
 
-            Status = ResolvePublicationStatus(PublicationDate, DateTimeOffset.UtcNow);
-        }
-
-        public void RequestChanges(string justificationText)
-        {
-            if (Status != CampaignStatus.InReview)
-                throw new InvalidOperationException("Only campaigns in review can be sent for changes.");
-
-            this.justificationText = ValidateJustification(justificationText);
-            Status = CampaignStatus.ForChange;
-        }
-
-        public void Reject(Motivo motivo, string justificationText)
-        {
-            if (Status != CampaignStatus.InReview)
-                throw new InvalidOperationException("Only campaigns in review can be rejected.");
-
-            CompleteCancellation(motivo, justificationText);
-        }
-
-        public void CancelCampaign(Motivo motivo, string justificationText)
-        {
-            if (Status is CampaignStatus.Sending or CampaignStatus.Closed or CampaignStatus.Canceled)
-                throw new InvalidOperationException("This campaign can no longer be canceled.");
-
-            CompleteCancellation(motivo, justificationText);
-        }
-
-        public void CheckStatus(DateTimeOffset now)
-        {
-            if (Status is CampaignStatus.New or CampaignStatus.Scheduled)
-                Status = ResolvePublicationStatus(PublicationDate, now);
-        }
-
-        public static CampaignStatus ResolvePublicationStatus(DateTimeOffset publicationDate, DateTimeOffset now)
-        {
-            if (publicationDate == default)
-                throw new ArgumentOutOfRangeException(nameof(publicationDate), "A publication date is required.");
-
-            var publicationMinute = ToUtcMinuteTicks(publicationDate);
-            var currentMinute = ToUtcMinuteTicks(now);
-            if (publicationMinute < currentMinute)
-                throw new ArgumentOutOfRangeException(nameof(publicationDate), "Publication date cannot be in the past.");
-
-            return publicationMinute == currentMinute
-                ? CampaignStatus.Sending
-                : CampaignStatus.Scheduled;
-        }
-
-        private void CompleteCancellation(Motivo motivo, string justificationText)
-        {
-            if (!Enum.IsDefined(motivo))
-                throw new ArgumentOutOfRangeException(nameof(motivo), "Campaign reason is invalid.");
-
-            this.justificationText = ValidateJustification(justificationText);
-            this.motivo = motivo;
             Status = CampaignStatus.Canceled;
         }
 
-        private static string ValidateJustification(string justificationText)
+        public void CheckStatus()
         {
-            if (string.IsNullOrWhiteSpace(justificationText))
-                throw new ArgumentException("A justification is required.", nameof(justificationText));
+            var now = DateTimeOffset.UtcNow;
 
-            return justificationText.Trim();
+            if (Status == CampaignStatus.New && PublicationDate.HasValue)
+            {
+                Status = CampaignStatus.Scheduled;
+                return;
+            }
+            if (Model != CampaignType.Instagram
+                && Status == CampaignStatus.Scheduled
+                && PublicationDate.HasValue
+                && PublicationDate.Value <= now)
+            {
+                Status = CampaignStatus.Sending;
+            }
         }
 
-        private static long ToUtcMinuteTicks(DateTimeOffset value)
+        public bool TryBeginInstagramPublication(DateTimeOffset now)
         {
-            var ticks = value.UtcDateTime.Ticks;
-            return ticks - ticks % TimeSpan.TicksPerMinute;
+            if (Model != CampaignType.Instagram
+                || Status is not (CampaignStatus.Scheduled or CampaignStatus.Approved)
+                || !PublicationDate.HasValue
+                || PublicationDate.Value > now
+                || InstagramMediaId is not null)
+            {
+                return false;
+            }
+
+            Status = CampaignStatus.Sending;
+            return true;
+        }
+
+        public string? InstagramMediaId { get; private set; }
+
+        public void CompleteInstagramPublication(string mediaId)
+        {
+            if (Status != CampaignStatus.Sending)
+                throw new InvalidOperationException("The campaign is not being published.");
+            if (string.IsNullOrWhiteSpace(mediaId))
+                throw new ArgumentException("Instagram media ID cannot be empty.", nameof(mediaId));
+
+            InstagramMediaId = mediaId;
+            Status = CampaignStatus.Closed;
+        }
+
+        public void FailInstagramPublication()
+        {
+            if (Status == CampaignStatus.Sending)
+                Status = CampaignStatus.Failed;
+        }
+
+        public void SetMotivo(string justificationText, Motivo motivo)
+        {
+            if (justificationText is null)
+                throw new ArgumentNullException(nameof(justificationText));
+
+            if (!Enum.IsDefined(motivo))
+                throw new ArgumentOutOfRangeException(nameof(motivo), "Campaign reason is invalid.");
+
+            this.justificationText = justificationText;
+            this.motivo = motivo;
         }
     }
 }

@@ -1,7 +1,9 @@
 using CoC_API.Context;
-using CoC_API.Endpoints;
 using CoC_API.Models;
+using CoC_API.Endpoints;
 using CoC_API.Security;
+using CoC_API.Services;
+using CoC_API.Integrations;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +11,6 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Regista o DbContext (connection string em appsettings.json -> ConnectionStrings:Default).
 builder.Services.AddDbContext<CoC_DbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
@@ -17,6 +18,17 @@ builder.Services.AddDbContext<CoC_DbContext>(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<UserSessionStore>();
+builder.Services.AddSingleton<CampaignStore>();
+var instagramOptions = new InstagramPublishingOptions(
+    builder.Configuration["COC_API_INSTAGRAM_ACCESS_TOKEN"],
+    builder.Configuration["COC_API_INSTAGRAM_USER_ID"],
+    builder.Configuration["COC_API_INSTAGRAM_GRAPH_API_VERSION"]);
+builder.Services.AddSingleton(instagramOptions);
+builder.Services.AddHttpClient<InstagramGraphApiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://graph.facebook.com/");
+});
+builder.Services.AddHostedService<InstagramPublishingService>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -38,7 +50,7 @@ builder.Services
                 ? null
                 : await sessions.TryGetActiveUserAsync(sessionId, context.HttpContext.RequestAborted);
 
-            if (user is null)
+            if (user is null || sessionId is null)
             {
                 context.RejectPrincipal();
                 await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -110,7 +122,11 @@ if (app.Environment.IsDevelopment())
     // app.MapOpenApi();
 }
 
-app.MapCampaignEndpoints();
+app.UseAuthentication();
+app.UseAuthorization();
+
+var campaigns = app.Services.GetRequiredService<CampaignStore>();
+app.MapCampaignEndpoints(campaigns);
 app.MapUserEndpoints();
 app.MapAuthEndpoints();
 

@@ -2,6 +2,11 @@
 @adminEmail = {{$processEnv COC_API_DEV_ADMIN_EMAIL}}
 @adminPassword = {{$processEnv COC_API_DEV_ADMIN_PASSWORD}}
 
+# Scheduled Instagram publishing requires COC_API_INSTAGRAM_ACCESS_TOKEN,
+# COC_API_INSTAGRAM_USER_ID, and COC_API_INSTAGRAM_GRAPH_API_VERSION.
+# Due campaigns in Scheduled or Approved state are published while the API is running.
+# ImageUrl must be a publicly accessible HTTPS image; Text is used as the Instagram caption.
+
 # Configure both Development admin environment variables before starting the API.
 POST {{baseUrl}}/login
 Content-Type: application/json
@@ -17,6 +22,7 @@ POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
+  "id": 2,
   "name": "Guilherme Conde",
   "email": "guilherme.conde@example.com",
   "password": "Password123!",
@@ -30,12 +36,13 @@ POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
+  "id": 3,
   "name": "Eduardo Fernando",
   "email": "eduardo.fernando@example.com",
   "password": "Password123!",
   "birthDate": "1990-01-01",
   "taxId": "987654321",
-  "caracteristics": ["isAprovador"]
+  "caracteristics": ["isAprovado"]
 }
 
 ###
@@ -55,8 +62,9 @@ Content-Type: application/json
 {
   "name": "Campanha de teste",
   "description": "Uma campanha para testar",
-  "modelMsg": "Olá!",
-  "type": "Email",
-  "publicationDate": "2026-11-20T14:00:00Z",
-  "imageUrl": null
+  "text": "Olá!",
+  "model": "Instagram",
+  "status": "Scheduled",
+  "publicationDate": "2026-11-18T17:35:00Z",
+  "imageUrl": "https://dummyimage.com/1080x1080/cccccc/000000.jpg&text=Instagram+API+test"
 }
