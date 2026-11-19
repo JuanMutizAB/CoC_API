@@ -61,6 +61,8 @@ public static class CampaingEndPoints
                 var status = user.HasCharacteristic(UserCaracteristics.isAprovando)
                     ? CampaignStatus.InReview
                     : publicationStatus;
+                if (request.Type == CampaignType.Instagram && status == CampaignStatus.Sending)
+                    status = CampaignStatus.Scheduled;
 
                 var campaign = new Campaign(
                     request.Name,
@@ -113,6 +115,8 @@ public static class CampaingEndPoints
                     : campaign.Status;
                 if (status == CampaignStatus.Scheduled)
                     status = Campaign.ResolvePublicationStatus(request.PublicationDate, now);
+                if (request.Type == CampaignType.Instagram && status == CampaignStatus.Sending)
+                    status = CampaignStatus.Scheduled;
 
                 campaign.EditCampaign(
                     request.Name,
@@ -130,6 +134,10 @@ public static class CampaingEndPoints
             catch (ArgumentException ex)
             {
                 return Results.BadRequest(new { erro = ex.Message });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Results.Conflict(new { erro = "The campaign changed while it was being edited." });
             }
         });
 
@@ -177,6 +185,10 @@ public static class CampaingEndPoints
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Results.Conflict(new { erro = "The campaign changed while it was being canceled." });
+            }
         });
 
         app.MapPut("/campaigns/{id:guid}/review/approve", async (
@@ -205,6 +217,10 @@ public static class CampaingEndPoints
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
             {
                 return Results.BadRequest(new { erro = ex.Message });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Results.Conflict(new { erro = "The campaign changed while it was being reviewed." });
             }
         });
 
@@ -236,6 +252,10 @@ public static class CampaingEndPoints
             {
                 return Results.BadRequest(new { erro = ex.Message });
             }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Results.Conflict(new { erro = "The campaign changed while it was being reviewed." });
+            }
         });
 
         app.MapPut("/campaigns/{id:guid}/review/reject", async (
@@ -265,6 +285,10 @@ public static class CampaingEndPoints
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
             {
                 return Results.BadRequest(new { erro = ex.Message });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Results.Conflict(new { erro = "The campaign changed while it was being reviewed." });
             }
         });
 

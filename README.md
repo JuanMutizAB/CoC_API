@@ -10,21 +10,17 @@ API em .NET 10 (ASP.NET Core minimal APIs) para gerir **users** e **campanhas**,
 
 ## Base de dados
 
-A API usa SQL Server. A connection string está em `CoC_API/appsettings.json` (`ConnectionStrings:Default`) e aponta para:
+A API usa SQL Server e lê a connection string da configuração `ConnectionStrings:Default`. Guarda a connection string localmente em User Secrets, não em `appsettings.json`:
 
 ```
-Server=127.0.0.1,14330;Database=Cockpit_of_Comms;User Id=sa;...
+dotnet user-secrets set "ConnectionStrings:Default" "Server=127.0.0.1,14330;Database=Cockpit_of_Comms;User Id=sa;Password=<password>;TrustServerCertificate=True" --project CoC_API/CoC_API.csproj
 ```
 
-Ou seja, espera um container de SQL Server **na tua própria máquina**, com a porta **14330** exposta e a password do `sa` igual à do `appsettings.json`.
+Isto configura apenas o teu projeto local. Cada pessoa deve usar as credenciais do seu próprio container SQL Server.
 
 > Cada pessoa tem a sua própria base de dados local. Os dados criados por um colega **não** aparecem nos outros.
 
-Se o teu container usar outra porta ou outra password, não alteres o `appsettings.json` para o commit: define a connection string só na tua máquina, por exemplo com uma variável de ambiente:
-
-```powershell
-$env:ConnectionStrings__Default = "Server=127.0.0.1,<porta>;Database=Cockpit_of_Comms;User Id=sa;Password=<password>;TrustServerCertificate=true"
-```
+Se o teu container usar outra porta, altera a connection string nos User Secrets, não no `appsettings.json`.
 
 ## Como correr
 
@@ -46,21 +42,24 @@ O container não arranca sozinho depois de reiniciar o PC ou o Docker.
 
 ### 2. Instalar a ferramenta `dotnet-ef` (versão 10)
 
-A versão 5.x, que pode vir instalada, não funciona com este projeto.
+A versão da ferramenta deve corresponder ao EF Core 10 usado pelo projeto.
 
 ```bash
-dotnet tool update --global dotnet-ef
+dotnet tool update --global dotnet-ef --version 10.0.14
 ```
 
-### 3. Criar as tabelas
+### 3. Recriar a base de desenvolvimento
+
+O histórico foi consolidado numa única migração inicial. **Todos os developers têm de recriar a sua própria base local** depois de obter estas alterações. Isto apaga os dados dessa base; faz backup antes, e nunca corras estes comandos contra uma base partilhada ou de produção.
 
 Dentro da pasta `CoC_API` (a que contém o `CoC_API.csproj`):
 
 ```bash
+dotnet ef database drop --force
 dotnet ef database update
 ```
 
-Isto cria a base `Cockpit_of_Comms` e aplica as migrações. Só é preciso uma vez, e de novo quando houver migrações novas.
+Isto recria `Cockpit_of_Comms` com o esquema final, incluindo sessões e publicação Instagram.
 
 ### 4. Correr a API
 
@@ -70,7 +69,27 @@ dotnet run
 
 Ou pelo Visual Studio. Em modo Development a API escuta em `http://localhost:5062`, e o Swagger fica em `http://localhost:5062/swagger`.
 
+### Publicação no Instagram
+
+Antes de iniciar a API, configura os segredos locais. Usa um token válido para uma conta profissional Instagram ligada à Meta e uma versão Graph API atualmente suportada:
+
+```bash
+dotnet user-secrets set "COC_API_INSTAGRAM_ACCESS_TOKEN" "<access-token>" --project CoC_API/CoC_API.csproj
+dotnet user-secrets set "COC_API_INSTAGRAM_USER_ID" "<instagram-user-id>" --project CoC_API/CoC_API.csproj
+dotnet user-secrets set "COC_API_INSTAGRAM_GRAPH_API_VERSION" "vNN.N" --project CoC_API/CoC_API.csproj
+```
+
+Cria uma campanha `Instagram` com uma imagem HTTPS publicamente acessível e uma data/hora UTC futura. Se o criador tiver a característica `isAprovando`, um utilizador `isAprovador` tem de aprová-la em `PUT /campaigns/{id}/review/approve`. O worker verifica a base de dados a cada 15 segundos e tenta publicar quando chega a hora. Consulta `GET /campaigns/{id}` para ver o estado: `Closed` significa publicada; `Failed` significa que a Meta rejeitou a publicação ou ocorreu um erro. Não há retry automático. Os testes automatizados usam uma resposta HTTP simulada e não publicam conteúdo real.
+
 Para testar os pedidos de exemplo, usa o ficheiro `CoC_API/CoC_API.http`.
+
+### Testes automatizados
+
+```bash
+dotnet test CoC_API.Tests/CoC_API.Tests.csproj
+```
+
+Os testes cobrem revisão, aprovação, rejeição, cancelamento, isolamento de campanhas e o worker Instagram com respostas HTTP simuladas; não fazem publicações reais.
 
 ## Endpoints
 
@@ -86,7 +105,9 @@ Para testar os pedidos de exemplo, usa o ficheiro `CoC_API/CoC_API.http`.
 | GET | `/campaigns/{id}` | Obtém uma campanha (o `id` é um GUID) |
 | PUT | `/campaigns/{id}/edit` | Edita uma campanha |
 | PUT | `/campaigns/{id}/cancel` | Cancela uma campanha |
-| PUT | `/campaigns/{id}/motivo` | Define o motivo e a justificação |
+| PUT | `/campaigns/{id}/review/approve` | Aprova uma campanha em revisão |
+| PUT | `/campaigns/{id}/review/request-changes` | Pede alterações com justificação |
+| PUT | `/campaigns/{id}/review/reject` | Rejeita uma campanha com motivo e justificação |
 | GET | `/campaigns/{id}/motivo` | Obtém o motivo e a justificação |
 
 Exemplo de body para `POST /users` (sem `id`):

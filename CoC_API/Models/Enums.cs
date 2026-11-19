@@ -13,7 +13,8 @@ namespace CoC_API.Models
         InReview,
         ForChange,
         Approved,
-        Canceled
+        Canceled,
+        Failed
     }
     
     [JsonConverter(typeof(JsonStringEnumConverter))]
