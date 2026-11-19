@@ -106,7 +106,7 @@ if (app.Environment.IsDevelopment())
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapSwaggerUI().AllowAnonymous();
     // app.MapOpenApi();
 }
 
