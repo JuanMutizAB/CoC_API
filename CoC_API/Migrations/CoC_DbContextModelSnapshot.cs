@@ -41,31 +41,32 @@ namespace CoC_API.Migrations
                     b.Property<string>("InstagramMediaId")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("Model")
-                        .HasColumnType("int");
+                    b.Property<string>("ModelMsg")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("Text");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTimeOffset?>("PublicationDate")
+                    b.Property<DateTimeOffset>("PublicationDate")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("Type")
+                        .HasColumnType("int")
+                        .HasColumnName("Model");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.Property<string>("justificationText")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("motivo")
+                    b.Property<int?>("motivo")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

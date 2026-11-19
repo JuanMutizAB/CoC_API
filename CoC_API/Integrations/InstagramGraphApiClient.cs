@@ -33,7 +33,7 @@ public sealed class InstagramGraphApiClient(
             new Dictionary<string, string>
             {
                 ["image_url"] = imageUri.AbsoluteUri,
-                ["caption"] = campaign.Text
+                ["caption"] = campaign.ModelMsg
             },
             cancellationToken);
 
@@ -99,13 +99,13 @@ public sealed class InstagramGraphApiClient(
             switch (result?.StatusCode)
             {
                 case "FINISHED":
+                case "PUBLISHED":
                     return;
                 case "ERROR":
                 case "EXPIRED":
                     throw new InvalidOperationException(
                         $"Instagram media container '{containerId}' ended with status '{result.StatusCode}'.");
                 case "IN_PROGRESS":
-                case "PUBLISHED":
                     await Task.Delay(ContainerPollInterval, cancellationToken);
                     break;
                 default:

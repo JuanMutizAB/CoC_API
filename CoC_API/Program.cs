@@ -1,6 +1,6 @@
 using CoC_API.Context;
-using CoC_API.Models;
 using CoC_API.Endpoints;
+using CoC_API.Models;
 using CoC_API.Security;
 using CoC_API.Services;
 using CoC_API.Integrations;
@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Regista o DbContext (connection string em appsettings.json -> ConnectionStrings:Default).
 builder.Services.AddDbContext<CoC_DbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
@@ -18,7 +19,6 @@ builder.Services.AddDbContext<CoC_DbContext>(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<UserSessionStore>();
-builder.Services.AddSingleton<CampaignStore>();
 var instagramOptions = new InstagramPublishingOptions(
     builder.Configuration["COC_API_INSTAGRAM_ACCESS_TOKEN"],
     builder.Configuration["COC_API_INSTAGRAM_USER_ID"],
@@ -45,12 +45,17 @@ builder.Services
         options.Events.OnValidatePrincipal = async context =>
         {
             var sessionId = context.Principal?.FindFirst(UserClaimsPrincipalFactory.SessionIdClaimType)?.Value;
-            var sessions = context.HttpContext.RequestServices.GetRequiredService<UserSessionStore>();
-            var user = sessionId is null
-                ? null
-                : await sessions.TryGetActiveUserAsync(sessionId, context.HttpContext.RequestAborted);
+            if (sessionId is null)
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
+            }
 
-            if (user is null || sessionId is null)
+            var sessions = context.HttpContext.RequestServices.GetRequiredService<UserSessionStore>();
+            var user = await sessions.TryGetActiveUserAsync(sessionId, context.HttpContext.RequestAborted);
+
+            if (user is null)
             {
                 context.RejectPrincipal();
                 await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -125,9 +130,10 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 
-var campaigns = app.Services.GetRequiredService<CampaignStore>();
-app.MapCampaignEndpoints(campaigns);
+app.MapCampaignEndpoints();
 app.MapUserEndpoints();
 app.MapAuthEndpoints();
 
 app.Run();
+
+public partial class Program { }

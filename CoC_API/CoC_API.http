@@ -1,16 +1,8 @@
 @baseUrl = http://localhost:5062
-@adminEmail = Conde@askblue.com
-@adminPassword = Conde.7007
-
-# Scheduled Instagram publishing requires COC_API_INSTAGRAM_ACCESS_TOKEN,
-# COC_API_INSTAGRAM_USER_ID, and COC_API_INSTAGRAM_GRAPH_API_VERSION.
-# Due campaigns in Scheduled or Approved state are published while the API is running.
-# ImageUrl must be a publicly accessible HTTPS image; Text is used as the Instagram caption.
-
-# Scheduled Instagram publishing requires COC_API_INSTAGRAM_ACCESS_TOKEN,
-# COC_API_INSTAGRAM_USER_ID, and COC_API_INSTAGRAM_GRAPH_API_VERSION.
-# Due campaigns in Scheduled or Approved state are published while the API is running.
-# ImageUrl must be a publicly accessible HTTPS image; Text is used as the Instagram caption.
+@adminEmail = {{$processEnv COC_API_DEV_ADMIN_EMAIL}}
+@adminPassword = {{$processEnv COC_API_DEV_ADMIN_PASSWORD}}
+# Replace this with the ID returned by the Instagram campaign creation request.
+@campaignId = 00000000-0000-0000-0000-000000000000
 
 # Configure both Development admin environment variables before starting the API.
 POST {{baseUrl}}/login
@@ -27,7 +19,6 @@ POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "id": 2,
   "name": "Guilherme Conde",
   "email": "guilherme.conde@example.com",
   "password": "Password123!",
@@ -41,13 +32,12 @@ POST {{baseUrl}}/users
 Content-Type: application/json
 
 {
-  "id": 3,
   "name": "Eduardo Fernando",
   "email": "eduardo.fernando@example.com",
   "password": "Password123!",
   "birthDate": "1990-01-01",
   "taxId": "987654321",
-  "caracteristics": ["isAprovado"]
+  "caracteristics": ["isAprovador"]
 }
 
 ###
@@ -67,9 +57,50 @@ Content-Type: application/json
 {
   "name": "Campanha de teste",
   "description": "Uma campanha para testar",
-  "text": "Olá!",
-  "model": "Instagram",
-  "status": "Scheduled",
-  "publicationDate": "2026-11-18T17:35:00Z",
-  "imageUrl": "https://dummyimage.com/1080x1080/cccccc/000000.jpg&text=Instagram+API+test"
+  "modelMsg": "Olá!",
+  "type": "Email",
+  "publicationDate": "2026-11-20T14:00:00Z",
+  "imageUrl": null
 }
+
+###
+# Replace the date with a future UTC time and the image URL with a public HTTPS image.
+# This owner has isAprovando, so the campaign starts in InReview.
+POST {{baseUrl}}/campaigns
+Content-Type: application/json
+
+{
+  "name": "Instagram test campaign",
+  "description": "A test campaign for Instagram publishing",
+  "modelMsg": "Caption for a test publication",
+  "type": "Instagram",
+  "publicationDate": "2026-11-20T14:00:00Z",
+  "imageUrl": "https://your-public-host.example/image.jpg"
+}
+
+###
+# Log in as the reviewer account created above.
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "eduardo.fernando@example.com",
+  "password": "Password123!"
+}
+
+###
+PUT {{baseUrl}}/campaigns/{{campaignId}}/review/approve
+
+###
+# Log back in as the campaign owner to check the final status.
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "email": "guilherme.conde@example.com",
+  "password": "Password123!"
+}
+
+###
+# Check after the scheduled time; the worker polls every 15 seconds.
+GET {{baseUrl}}/campaigns/{{campaignId}}

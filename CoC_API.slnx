@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="CoC_API.Tests/CoC_API.Tests.csproj" />
   <Project Path="CoC_API/CoC_API.csproj" />
 </Solution>

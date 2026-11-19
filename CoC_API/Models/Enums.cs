@@ -11,6 +11,7 @@ namespace CoC_API.Models
         Sending,
         Closed,
         InReview,
+        ForChange,
         Approved,
         Canceled,
         Failed
@@ -31,7 +32,7 @@ namespace CoC_API.Models
     {
         Admin,
         isAprovando,
-        isAprovado,
+        isAprovador,
         isActive
     }
 
