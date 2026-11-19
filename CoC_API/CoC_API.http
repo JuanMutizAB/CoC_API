@@ -1,6 +1,11 @@
 @baseUrl = http://localhost:5062
-@adminEmail = {{$processEnv COC_API_DEV_ADMIN_EMAIL}}
-@adminPassword = {{$processEnv COC_API_DEV_ADMIN_PASSWORD}}
+@adminEmail = Conde@askblue.com
+@adminPassword = Conde.7007
+
+# Scheduled Instagram publishing requires COC_API_INSTAGRAM_ACCESS_TOKEN,
+# COC_API_INSTAGRAM_USER_ID, and COC_API_INSTAGRAM_GRAPH_API_VERSION.
+# Due campaigns in Scheduled or Approved state are published while the API is running.
+# ImageUrl must be a publicly accessible HTTPS image; Text is used as the Instagram caption.
 
 # Scheduled Instagram publishing requires COC_API_INSTAGRAM_ACCESS_TOKEN,
 # COC_API_INSTAGRAM_USER_ID, and COC_API_INSTAGRAM_GRAPH_API_VERSION.
