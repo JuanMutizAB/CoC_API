@@ -1,27 +1,30 @@
 using CoC_API.Context;
 using CoC_API.DTOs.Request;
 using CoC_API.Models;
+using CoC_API.Security;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoC_API.Endpoints;
 
 public static class AuthEndpoints
 {
-    public static void MapAuthEndpoints(
-        this WebApplication app,
-        List<User> users,
-        InMemoryUserSessionStore sessions)
+    public static void MapAuthEndpoints(this WebApplication app)
     {
-        app.MapPost("/login", async (LoginRequest request, HttpContext context) =>
+        app.MapPost("/login", async (
+            LoginRequest request,
+            HttpContext context,
+            CoC_DbContext db,
+            UserSessionStore sessions) =>
         {
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
                 return Results.BadRequest(new { erro = "Email and password are required." });
-            }
 
-            var email = request.Email.Trim();
-            var user = await db.Users.FirstOrDefaultAsync(user => user.email == email);
-
-            var user = users.FirstOrDefault(candidate => candidate.MatchesEmail(request.Email));
+            var normalizedEmail = request.Email.Trim().ToUpperInvariant();
+            var user = await db.Users.FirstOrDefaultAsync(
+                candidate => candidate.email.ToUpper() == normalizedEmail,
+                context.RequestAborted);
             if (user is null
                 || !user.CheckPassword(request.Password)
                 || !user.HasCharacteristic(UserCaracteristics.isActive))
@@ -29,7 +32,7 @@ public static class AuthEndpoints
                 return Results.Json(new { erro = "Invalid credentials." }, statusCode: StatusCodes.Status401Unauthorized);
             }
 
-            var sessionId = sessions.CreateSession(user.id);
+            var sessionId = await sessions.CreateSessionAsync(user.id, context.RequestAborted);
             var principal = UserClaimsPrincipalFactory.Create(user, sessionId);
             await context.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
@@ -39,9 +42,11 @@ public static class AuthEndpoints
             return Results.Ok(new { id = user.id, name = user.name });
         }).AllowAnonymous();
 
-        app.MapPost("/logout", async (HttpContext context) =>
+        app.MapPost("/logout", async (HttpContext context, UserSessionStore sessions) =>
         {
-            sessions.RevokeSession(context.User.FindFirst(UserClaimsPrincipalFactory.SessionIdClaimType)?.Value);
+            await sessions.RevokeSessionAsync(
+                context.User.FindFirst(UserClaimsPrincipalFactory.SessionIdClaimType)?.Value,
+                context.RequestAborted);
             await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Results.NoContent();
         });

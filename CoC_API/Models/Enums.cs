@@ -11,12 +11,13 @@ namespace CoC_API.Models
         Sending,
         Closed,
         InReview,
+        ForChange,
         Approved,
         Canceled
     }
     
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public enum CampaignModel
+    public enum CampaignType
     {
         Email,
         Messaging,
@@ -30,7 +31,7 @@ namespace CoC_API.Models
     {
         Admin,
         isAprovando,
-        isAprovado,
+        isAprovador,
         isActive
     }
 

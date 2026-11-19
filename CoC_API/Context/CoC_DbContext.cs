@@ -11,6 +11,7 @@ public class CoC_DbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<Campaign> Campaigns { get; set; }
+    public DbSet<UserSession> UserSessions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +28,16 @@ public class CoC_DbContext : DbContext
             user.Property(u => u.taxId).HasField("taxIdValue");
             user.Property(u => u.caracteristics).HasField("caracteristicsValue");
             user.UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<UserSession>(session =>
+        {
+            session.HasKey(s => s.TokenHash);
+            session.Property(s => s.TokenHash).HasMaxLength(64);
+            session.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

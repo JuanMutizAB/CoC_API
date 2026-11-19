@@ -25,7 +25,9 @@ public static class UserEndpoints
                 return Results.NotFound();
             }
 
-            if (users.Any(existing => existing.id != id && existing.MatchesEmail(request.Email)))
+            var normalizedEmail = request.Email.Trim().ToUpperInvariant();
+            if (await db.Users.AnyAsync(existing =>
+                existing.id != id && existing.email.ToUpper() == normalizedEmail))
                 return Results.Conflict(new { erro = "A user with this email already exists." });
 
             try
@@ -55,7 +57,8 @@ public static class UserEndpoints
                     request.Caracteristics
                 );
 
-                if (await db.Users.AnyAsync(u => u.email == user.email))
+                var normalizedEmail = user.email.ToUpperInvariant();
+                if (await db.Users.AnyAsync(existing => existing.email.ToUpper() == normalizedEmail))
                 {
                     return Results.Conflict(new { erro = "A user with this email already exists." });
                 }

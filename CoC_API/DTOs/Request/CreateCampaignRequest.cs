@@ -6,9 +6,8 @@ public record CreateCampaignRequest
 (
     string Name,
     string Description,
-    string Text,
-    CampaignModel Model,
-    CampaignStatus Status,
-    DateTimeOffset? PublicationDate,
+    string ModelMsg,
+    CampaignType Type,
+    DateTimeOffset PublicationDate,
     string? ImageUrl
 );
