@@ -11,9 +11,9 @@ namespace CoC_API.Models
         Sending,
         Closed,
         InReview,
-        ForChange,
         Approved,
-        Canceled
+        Canceled,
+        Failed
     }
     
     [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -31,7 +31,7 @@ namespace CoC_API.Models
     {
         Admin,
         isAprovando,
-        isAprovador,
+        isAprovado,
         isActive
     }
 
