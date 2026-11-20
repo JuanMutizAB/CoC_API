@@ -1,0 +1,290 @@
+:root {
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    color: #17233c;
+    background: #f3f6fb;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background:
+        radial-gradient(ellipse at 10% 0%, rgba(52, 120, 246, 0.09), transparent 34rem),
+        #f3f6fb;
+}
+
+.page-shell {
+    width: min(100% - 48px, 1040px);
+    margin: 0 auto;
+    padding: 28px 0 64px;
+}
+
+.page-shell > a {
+    color: #215bd6;
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.page-shell > a:hover {
+    text-decoration: underline;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 20px 0 36px;
+}
+
+.brand {
+    color: #215bd6;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.06em;
+    text-decoration: none;
+}
+
+.edit-campaign {
+    max-width: 760px;
+    margin: 0 auto;
+    overflow: hidden;
+    border: 1px solid #e5eaf2;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 20px 60px rgba(32, 54, 91, 0.08);
+}
+
+.card-heading {
+    padding: 36px 40px 28px;
+    border-bottom: 1px solid #edf0f5;
+}
+
+.eyebrow {
+    margin: 0 0 14px;
+    color: #6b7890;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.eyebrow span {
+    padding: 0 6px;
+    color: #a4afbf;
+}
+
+.edit-campaign h1 {
+    margin: 0;
+    color: #17233c;
+    font-size: clamp(1.7rem, 4vw, 2.1rem);
+    letter-spacing: -0.045em;
+    line-height: 1.2;
+}
+
+.intro {
+    margin: 9px 0 0;
+    color: #69768c;
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
+
+.campaign-form {
+    padding: 30px 40px 36px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 20px;
+}
+
+.form-field {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-field--full {
+    grid-column: 1 / -1;
+}
+
+.form-field label {
+    color: #263550;
+    font-size: 0.875rem;
+    font-weight: 650;
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid #dce3ed;
+    border-radius: 9px;
+    outline: none;
+    background: #fff;
+    color: #17233c;
+    font: inherit;
+    font-size: 0.925rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.form-field input:not([type="file"]),
+.form-field select {
+    padding: 0 13px;
+}
+
+.form-field textarea {
+    min-height: 100px;
+    padding: 12px 13px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.form-field input::placeholder,
+.form-field textarea::placeholder {
+    color: #9aa5b5;
+}
+
+.form-field input:focus,
+.form-field textarea:focus,
+.form-field select:focus {
+    border-color: #3974ec;
+    box-shadow: 0 0 0 3px rgba(57, 116, 236, 0.13);
+}
+
+.form-field input[type="date"],
+.form-field input[type="time"] {
+    padding: 0 12px;
+}
+
+.form-field .file-input {
+    min-height: auto;
+    padding: 10px;
+    border-style: dashed;
+    background: #f9fbfe;
+    color: #68758b;
+    font-size: 0.875rem;
+}
+
+.file-input::file-selector-button {
+    margin-right: 12px;
+    padding: 8px 11px;
+    border: 0;
+    border-radius: 6px;
+    background: #eaf1ff;
+    color: #245bc9;
+    font: inherit;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.field-hint {
+    color: #7d899b;
+    font-size: 0.8rem;
+}
+
+.edit-campaign .form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 30px;
+    padding-top: 24px;
+    border-top: 1px solid #edf0f5;
+}
+
+.edit-campaign #form-status {
+    color: #4a5870;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.edit-campaign #form-status:empty {
+    display: none;
+}
+
+.edit-campaign #form-status[role="alert"] {
+    color: #b42318;
+}
+
+.edit-campaign #submit-campaign {
+    display: inline-flex;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 9px;
+    background: #245fd7;
+    color: #fff;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.edit-campaign #submit-campaign:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: #174dbb;
+}
+
+.edit-campaign #submit-campaign:focus-visible {
+    outline: 3px solid rgba(57, 116, 236, 0.35);
+    outline-offset: 3px;
+}
+
+.edit-campaign #submit-campaign:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+@media (max-width: 700px) {
+    .page-shell {
+        width: min(100% - 28px, 1040px);
+        padding-top: 20px;
+    }
+
+    .topbar {
+        margin-bottom: 22px;
+    }
+
+    .edit-campaign {
+        border-radius: 14px;
+    }
+
+    .card-heading {
+        padding: 26px 22px 22px;
+    }
+
+    .campaign-form {
+        padding: 24px 22px 26px;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .form-field--full {
+        grid-column: auto;
+    }
+
+    .edit-campaign .form-actions {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
+    .edit-campaign #submit-campaign {
+        width: 100%;
+    }
+}

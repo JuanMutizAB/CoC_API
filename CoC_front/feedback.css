@@ -1,0 +1,204 @@
+:root {
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    color: #17233c;
+    background: #f3f6fb;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    padding: 40px 24px;
+    background:
+        radial-gradient(ellipse at 10% 0%, rgba(52, 120, 246, 0.09), transparent 34rem),
+        #f3f6fb;
+}
+
+.feedback-title {
+    max-width: 1040px;
+    margin: 0 auto 16px;
+    color: #17233c;
+    font-size: clamp(1.7rem, 4vw, 2.1rem);
+    letter-spacing: -0.045em;
+    line-height: 1.2;
+}
+
+.feedback-back-link {
+    display: block;
+    width: fit-content;
+    max-width: 1040px;
+    margin: 0 auto 24px;
+    color: #215bd6;
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.feedback-back-link:hover {
+    text-decoration: underline;
+}
+
+.feedback-page {
+    max-width: 1040px;
+    margin: 0 auto;
+}
+
+.feedback-form {
+    padding: 30px 40px 36px;
+    border: 1px solid #e5eaf2;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 20px 60px rgba(32, 54, 91, 0.08);
+}
+
+.feedback-layout {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.8fr) minmax(0, 2fr);
+    gap: 22px 20px;
+    align-items: start;
+}
+
+.feedback-field {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.feedback-message {
+    grid-column: 1 / -1;
+}
+
+.feedback-field label {
+    color: #263550;
+    font-size: 0.875rem;
+    font-weight: 650;
+}
+
+.feedback-field select,
+.feedback-field textarea {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid #dce3ed;
+    border-radius: 9px;
+    outline: none;
+    background: #fff;
+    color: #17233c;
+    font: inherit;
+    font-size: 0.925rem;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.feedback-field select {
+    padding: 0 13px;
+}
+
+.feedback-field textarea {
+    min-height: 100px;
+    padding: 12px 13px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.feedback-field textarea::placeholder {
+    color: #9aa5b5;
+}
+
+.feedback-field select:focus,
+.feedback-field textarea:focus {
+    border-color: #3974ec;
+    box-shadow: 0 0 0 3px rgba(57, 116, 236, 0.13);
+}
+
+.feedback-form .form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 30px;
+    padding-top: 24px;
+    border-top: 1px solid #edf0f5;
+}
+
+.feedback-form #form-status {
+    color: #4a5870;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+
+.feedback-form #form-status:empty {
+    display: none;
+}
+
+.feedback-form #form-status[role="alert"] {
+    color: #b42318;
+}
+
+.feedback-form #submit-campaign {
+    display: inline-flex;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 9px;
+    background: #245fd7;
+    color: #fff;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.feedback-form #submit-campaign:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: #174dbb;
+}
+
+.feedback-form #submit-campaign:focus-visible {
+    outline: 3px solid rgba(57, 116, 236, 0.35);
+    outline-offset: 3px;
+}
+
+.feedback-form #submit-campaign:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+@media (max-width: 700px) {
+    body {
+        padding: 24px 14px;
+    }
+
+    .feedback-form {
+        padding: 24px 22px 26px;
+        border-radius: 14px;
+    }
+
+    .feedback-layout {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .feedback-message {
+        grid-column: auto;
+    }
+
+    .feedback-form .form-actions {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
+    .feedback-form #submit-campaign {
+        width: 100%;
+    }
+}

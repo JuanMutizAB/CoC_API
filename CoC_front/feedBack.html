@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campanhas</title>
+  <link rel="stylesheet" href="feedback.css">
+</head>
+<body>
+  <h1 class="feedback-title">FeedBack Campanhas</h1>
+  <!-- Mudar para o Campaing List -->
+  <a class="feedback-back-link" href="edit_campaing.html">Voltar à página inicial</a>
+  <main class="feedback-page">
+    <form id="feedback-form" class="feedback-form">
+        <div class="feedback-layout">
+            <div class="feedback-field feedback-reason">
+                <label for="Motivo">Motivo</label>
+                <select id="Motivo" name="Motivo" required>
+                    <option value="" disabled selected>Motivo</option>
+                    <option value="Erro ortografico">Erro ortografico</option>
+                    <option value="Other">Other</option>
+                    <option value="Mal Criado">Mal Criado</option>
+                </select>
+            </div>
+            
+            <div class="feedback-field feedback-message">
+                <label for="Feedback-description">Feedback</label>
+                <textarea id="Feedback-description" name="Feedback" rows="3" placeholder="Descreva brevemente o Feedback da campanha"></textarea>
+            </div>
+
+            <div class="form-actions">
+                <p id="form-status" role="status" aria-live="polite"></p>
+                <button type="submit" id="submit-campaign">Adicionar Feedback <span aria-hidden="true">→</span></button>
+            </div>
+        </div>
+    </form>
+  </main>
+</body>
+</html>
