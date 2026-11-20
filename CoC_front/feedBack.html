@@ -1,45 +1,58 @@
 <!DOCTYPE html>
-<html lang="pt-pt">
+<html lang="pt-PT">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Campanhas</title>
-  <link rel="stylesheet" href="feedback.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Feedback - CoC</title>
+    <link rel="stylesheet" href="feedback.css">
 </head>
 <body>
-  <div class="feedback-shell">
-    <header class="feedback-topbar">
-      <a class="feedback-brand" href="index.html">AskBlue</a>
-      <a class="feedback-back-link" href="edit_campaing.html">Voltar à página inicial</a>
-    </header>
     <main class="feedback-page">
-      <section class="feedback-heading">
-        <h1 class="feedback-title">Feedback Campanhas</h1>
-      </section>
-    <form id="feedback-form" class="feedback-form">
-        <div class="feedback-layout">
-            <div class="feedback-field feedback-reason">
-                <label for="Motivo">Motivo</label>
-                <select id="Motivo" name="Motivo" required>
-                    <option value="" disabled selected>Motivo</option>
-                    <option value="Erro ortografico">Erro ortografico</option>
-                    <option value="Other">Other</option>
-                    <option value="Mal Criado">Mal Criado</option>
-                </select>
-            </div>
-            
-            <div class="feedback-field feedback-message">
-                <label for="Feedback-description">Feedback</label>
-                <textarea id="Feedback-description" name="Feedback" rows="3" placeholder="Descreva brevemente o Feedback da campanha"></textarea>
+        <header class="page-header">
+            <a class="brand" href="index.html" aria-label="Cockpit of Communications - Login">
+                <img src="askblue-logo-oficial-rgb.png" alt="AskBlue">
+                <span class="brand-copy">
+                    <span class="brand-name">Cockpit of Communications</span>
+                    <span class="page-title">Campaign Feedback</span>
+                </span>
+            </a>
+        </header>
+
+        <section class="feedback-card" aria-labelledby="feedback-title">
+            <div class="section-heading">
+                <div>
+                    <h1 id="feedback-title">Campaign Feedback</h1>
+                    <p>Share feedback about this campaign.</p>
+                </div>
+                <a class="back-button" href="edit_campaing.html">Back to Campaign</a>
             </div>
 
-            <div class="form-actions">
-                <p id="form-status" role="status" aria-live="polite"></p>
-                <button type="submit" id="submit-campaign">Adicionar Feedback <span aria-hidden="true">→</span></button>
-            </div>
-        </div>
-    </form>
+            <form id="feedback-form" class="feedback-form">
+                <div class="feedback-layout">
+                    <div class="form-field">
+                        <label for="Motivo">Reason</label>
+                        <select id="Motivo" name="Motivo" required>
+                            <option value="" disabled selected>Select a reason</option>
+                            <option value="Erro ortografico">Spelling error</option>
+                            <option value="Other">Other</option>
+                            <option value="Mal Criado">Poorly created</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field feedback-message">
+                        <label for="Feedback-description">Feedback</label>
+                        <textarea id="Feedback-description" name="Feedback" rows="4" placeholder="Describe the issue or suggestion"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <p id="form-status" role="status" aria-live="polite"></p>
+                    <button class="primary-button" type="submit" id="submit-campaign">
+                        <span>Submit Feedback</span>
+                    </button>
+                </div>
+            </form>
+        </section>
     </main>
-  </div>
 </body>
 </html>
