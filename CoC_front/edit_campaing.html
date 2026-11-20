@@ -1,66 +1,74 @@
 <!DOCTYPE html>
-<html lang="pt-pt">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AskBlue</title>
+    <title>Edit Campaign - CoC</title>
     <link rel="stylesheet" href="edit_Campaing.css">
 </head>
 <body>
-    <div class="page-shell">
-        <header class="topbar">
-            <a class="brand" href="index.html" aria-label="AskBlue - início">AskBlue</a>
-            <a class="topbar-link" href="feedBack.html">Adicionar feedback</a>
+    <main class="edit-campaign-page">
+        <header class="page-header">
+            <a class="brand" href="index.html" aria-label="Cockpit of Communications - Login">
+                <img src="askblue-logo-oficial-rgb.png" alt="AskBlue">
+                <span class="brand-copy">
+                    <span class="brand-name">Cockpit of Communications</span>
+                    <span class="page-title">Campaigns</span>
+                </span>
+            </a>
         </header>
 
-        <main class="edit-campaign">
-            <section class="card-heading">
-                <p class="eyebrow">Campanhas <span>/</span> Nova campanha</p>
-                <h1>Editar campanha</h1>
-                <p class="intro">Adicione os detalhes, a imagem e a data de publicação.</p>
-            </section>
+        <section class="edit-campaign-card" aria-labelledby="edit-campaign-title">
+            <div class="section-heading">
+                <div>
+                    <h1 id="edit-campaign-title">Edit Campaign</h1>
+                    <p>Update the campaign details, content, image, and schedule.</p>
+                </div>
+                <a class="back-button" href="feedBack.html">Campaign Feedback</a>
+            </div>
 
             <form id="campaign-form" class="campaign-form">
                 <div class="form-grid">
                     <div class="form-field form-field--full">
-                        <label for="campaign-name">Nome da campanha</label>
-                        <input type="text" id="campaign-name" name="name" placeholder="Ex.: Campanha de verão" required>
+                        <label for="campaign-name">Campaign Name</label>
+                        <input type="text" id="campaign-name" name="name" placeholder="e.g. Summer Campaign" required>
                     </div>
 
                     <div class="form-field form-field--full">
-                        <label for="campaign-description">Descrição</label>
-                        <textarea id="campaign-description" name="description" rows="3" placeholder="Descreva brevemente o objetivo da campanha"></textarea>
+                        <label for="campaign-description">Description</label>
+                        <textarea id="campaign-description" name="description" rows="3" placeholder="Briefly describe the campaign goal"></textarea>
                     </div>
 
                     <div class="form-field form-field--full">
-                        <label for="campaign-text">Texto da campanha</label>
-                        <textarea id="campaign-text" name="text" rows="5" placeholder="Escreva o texto que será publicado"></textarea>
+                        <label for="campaign-text">Campaign Text</label>
+                        <textarea id="campaign-text" name="text" rows="5" placeholder="Write the text to be published"></textarea>
                     </div>
 
                     <div class="form-field form-field--full">
-                        <label for="campaign-image">Imagem da campanha</label>
+                        <label for="campaign-image">Campaign Image</label>
                         <input class="file-input" type="file" id="campaign-image" name="image" accept="image/*" required>
-                        <span class="field-hint">Escolha uma imagem do seu dispositivo.</span>
+                        <span class="field-hint">Choose an image from your device.</span>
                     </div>
 
                     <div class="form-field">
-                        <label for="campaign-publish-date">Data de publicação</label>
+                        <label for="campaign-publish-date">Publish Date</label>
                         <input type="date" id="campaign-publish-date" name="publishDate" required>
                     </div>
 
                     <div class="form-field">
-                        <label for="campaign-publish-time">Hora de publicação</label>
+                        <label for="campaign-publish-time">Publish Time</label>
                         <input type="time" id="campaign-publish-time" name="publisTime" required>
                     </div>
                 </div>
 
                 <div class="form-actions">
                     <p id="form-status" role="status" aria-live="polite"></p>
-                    <button type="submit" id="submit-campaign">Criar campanha <span aria-hidden="true">→</span></button>
+                    <button class="primary-button" type="submit" id="submit-campaign">
+                        <span>Save Campaign</span>
+                    </button>
                 </div>
             </form>
-        </main>
-    </div>
-    <script src="app.js" defer></script>
+        </section>
+    </main>
 </body>
 </html>
