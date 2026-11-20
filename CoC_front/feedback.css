@@ -1,9 +1,10 @@
 :root {
-    font-family: Inter, "Segoe UI", Arial, sans-serif;
-    color: #17233c;
+    --askblue-blue: #030cef;
+    --askblue-blue-hover: #020ac5;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #172033;
     background: #f3f6fb;
     font-synthesis: none;
-    text-rendering: optimizeLegibility;
 }
 
 * {
@@ -14,47 +15,87 @@ body {
     min-width: 320px;
     min-height: 100vh;
     margin: 0;
-    padding: 40px 24px;
-    background:
-        radial-gradient(ellipse at 10% 0%, rgba(52, 120, 246, 0.09), transparent 34rem),
-        #f3f6fb;
+    background: #f3f6fb;
 }
 
-.feedback-title {
-    max-width: 1040px;
-    margin: 0 auto 16px;
-    color: #17233c;
-    font-size: clamp(1.7rem, 4vw, 2.1rem);
-    letter-spacing: -0.045em;
-    line-height: 1.2;
+.feedback-shell {
+    width: min(100% - 48px, 1040px);
+    margin: 0 auto;
+    padding-bottom: 64px;
+}
+
+.feedback-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    min-height: 96px;
+    margin-bottom: 36px;
+    padding: 20px 28px;
+    background-color: var(--askblue-blue);
+    background-image: url("FundoTeams2025_askblueGrafismo.jpg");
+    background-position: right center;
+    background-size: cover;
+    color: #fff;
+}
+
+.feedback-brand {
+    color: #fff;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    text-decoration: none;
 }
 
 .feedback-back-link {
-    display: block;
-    width: fit-content;
-    max-width: 1040px;
-    margin: 0 auto 24px;
-    color: #215bd6;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    padding: 11px 16px;
+    color: #fff;
     font-size: 0.875rem;
     font-weight: 700;
     text-decoration: none;
 }
 
 .feedback-back-link:hover {
-    text-decoration: underline;
+    background: #fff;
+    color: var(--askblue-blue);
 }
 
 .feedback-page {
-    max-width: 1040px;
+    max-width: 760px;
     margin: 0 auto;
+    overflow: hidden;
+    border: 1px solid #d5dce8;
+    background: #fff;
+}
+
+.feedback-heading {
+    padding: 36px 40px 28px;
+    border-bottom: 1px solid #edf0f5;
+}
+
+.feedback-title {
+    margin: 0 0 12px;
+    color: #172033;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    line-height: 1;
+}
+
+.feedback-title::after {
+    display: block;
+    width: 36px;
+    height: 3px;
+    margin-top: 12px;
+    background: var(--askblue-blue);
+    content: "";
 }
 
 .feedback-form {
     padding: 30px 40px 36px;
-    border: 1px solid #e5eaf2;
-    border-radius: 18px;
-    background: #fff;
-    box-shadow: 0 20px 60px rgba(32, 54, 91, 0.08);
 }
 
 .feedback-layout {
@@ -76,23 +117,21 @@ body {
 }
 
 .feedback-field label {
-    color: #263550;
-    font-size: 0.875rem;
-    font-weight: 650;
+    color: #172033;
+    font-size: 14px;
+    font-weight: 700;
 }
 
 .feedback-field select,
 .feedback-field textarea {
     width: 100%;
     min-height: 46px;
-    border: 1px solid #dce3ed;
-    border-radius: 9px;
+    border: 1px solid #ccd5e3;
     outline: none;
     background: #fff;
-    color: #17233c;
+    color: #172033;
     font: inherit;
-    font-size: 0.925rem;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .feedback-field select {
@@ -107,13 +146,13 @@ body {
 }
 
 .feedback-field textarea::placeholder {
-    color: #9aa5b5;
+    color: #68748a;
 }
 
 .feedback-field select:focus,
 .feedback-field textarea:focus {
-    border-color: #3974ec;
-    box-shadow: 0 0 0 3px rgba(57, 116, 236, 0.13);
+    border-color: var(--askblue-blue);
+    box-shadow: 0 0 0 3px rgba(3, 12, 239, 0.12);
 }
 
 .feedback-form .form-actions {
@@ -148,24 +187,23 @@ body {
     gap: 12px;
     padding: 0 18px;
     border: 0;
-    border-radius: 9px;
-    background: #245fd7;
+    background: var(--askblue-blue);
     color: #fff;
     font: inherit;
-    font-size: 0.9rem;
+    font-size: 14px;
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
-    transition: background-color 150ms ease, transform 150ms ease;
+    transition: background 0.2s, transform 0.1s;
 }
 
 .feedback-form #submit-campaign:hover:not(:disabled) {
     transform: translateY(-1px);
-    background: #174dbb;
+    background: var(--askblue-blue-hover);
 }
 
 .feedback-form #submit-campaign:focus-visible {
-    outline: 3px solid rgba(57, 116, 236, 0.35);
+    outline: 3px solid rgba(3, 12, 239, 0.25);
     outline-offset: 3px;
 }
 
@@ -175,13 +213,28 @@ body {
 }
 
 @media (max-width: 700px) {
-    body {
-        padding: 24px 14px;
+    .feedback-shell {
+        width: min(100% - 28px, 1040px);
+        padding-bottom: 32px;
+    }
+
+    .feedback-topbar {
+        min-height: 80px;
+        margin-bottom: 22px;
+        padding: 16px 18px;
+    }
+
+    .feedback-back-link {
+        padding: 9px 11px;
+        font-size: 0.8rem;
+    }
+
+    .feedback-heading {
+        padding: 26px 22px 22px;
     }
 
     .feedback-form {
         padding: 24px 22px 26px;
-        border-radius: 14px;
     }
 
     .feedback-layout {
