@@ -38,6 +38,9 @@ namespace CoC_API.Migrations
                     b.Property<string>("ImageUrl")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("InstagramMediaId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ModelMsg")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)")

@@ -25,10 +25,14 @@ public static class UserEndpoints
                 return Results.NotFound();
             }
 
-            var normalizedEmail = request.Email.Trim().ToUpperInvariant();
-            if (await db.Users.AnyAsync(existing =>
-                existing.id != id && existing.email.ToUpper() == normalizedEmail))
-                return Results.Conflict(new { erro = "A user with this email already exists." });
+            // Os campos não enviados no pedido mantêm o valor atual do utilizador.
+            if (request.Email is not null)
+            {
+                var normalizedEmail = request.Email.Trim().ToUpperInvariant();
+                if (await db.Users.AnyAsync(existing =>
+                    existing.id != id && existing.email.ToUpper() == normalizedEmail))
+                    return Results.Conflict(new { erro = "A user with this email already exists." });
+            }
 
             try
             {

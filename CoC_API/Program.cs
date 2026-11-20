@@ -2,6 +2,8 @@ using CoC_API.Context;
 using CoC_API.Endpoints;
 using CoC_API.Models;
 using CoC_API.Security;
+using CoC_API.Services;
+using CoC_API.Integrations;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -17,6 +19,16 @@ builder.Services.AddDbContext<CoC_DbContext>(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<UserSessionStore>();
+var instagramOptions = new InstagramPublishingOptions(
+    builder.Configuration["COC_API_INSTAGRAM_ACCESS_TOKEN"],
+    builder.Configuration["COC_API_INSTAGRAM_USER_ID"],
+    builder.Configuration["COC_API_INSTAGRAM_GRAPH_API_VERSION"]);
+builder.Services.AddSingleton(instagramOptions);
+builder.Services.AddHttpClient<InstagramGraphApiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://graph.facebook.com/");
+});
+builder.Services.AddHostedService<InstagramPublishingService>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -33,10 +45,15 @@ builder.Services
         options.Events.OnValidatePrincipal = async context =>
         {
             var sessionId = context.Principal?.FindFirst(UserClaimsPrincipalFactory.SessionIdClaimType)?.Value;
+            if (sessionId is null)
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
+            }
+
             var sessions = context.HttpContext.RequestServices.GetRequiredService<UserSessionStore>();
-            var user = sessionId is null
-                ? null
-                : await sessions.TryGetActiveUserAsync(sessionId, context.HttpContext.RequestAborted);
+            var user = await sessions.TryGetActiveUserAsync(sessionId, context.HttpContext.RequestAborted);
 
             if (user is null)
             {
@@ -106,12 +123,17 @@ if (app.Environment.IsDevelopment())
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapSwaggerUI().AllowAnonymous();
     // app.MapOpenApi();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapCampaignEndpoints();
 app.MapUserEndpoints();
 app.MapAuthEndpoints();
 
 app.Run();
+
+public partial class Program { }

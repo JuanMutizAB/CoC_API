@@ -104,6 +104,8 @@ namespace CoC_API.Models
             private set => imageUrl = value;
         }
 
+        public string? InstagramMediaId { get; private set; }
+
         public int UserId
         {
             get => userId;
@@ -168,7 +170,10 @@ namespace CoC_API.Models
             if (Status != CampaignStatus.InReview)
                 throw new InvalidOperationException("Only campaigns in review can be approved.");
 
-            Status = ResolvePublicationStatus(PublicationDate, DateTimeOffset.UtcNow);
+            var publicationStatus = ResolvePublicationStatus(PublicationDate, DateTimeOffset.UtcNow);
+            Status = Type == CampaignType.Instagram
+                ? CampaignStatus.Approved
+                : publicationStatus;
         }
 
         public void RequestChanges(string justificationText)
@@ -225,6 +230,23 @@ namespace CoC_API.Models
             this.justificationText = ValidateJustification(justificationText);
             this.motivo = motivo;
             Status = CampaignStatus.Canceled;
+        }
+
+        public void CompleteInstagramPublication(string mediaId)
+        {
+            if (Status != CampaignStatus.Sending)
+                throw new InvalidOperationException("The campaign is not being published.");
+            if (string.IsNullOrWhiteSpace(mediaId))
+                throw new ArgumentException("Instagram media ID cannot be empty.", nameof(mediaId));
+
+            InstagramMediaId = mediaId;
+            Status = CampaignStatus.Closed;
+        }
+
+        public void FailInstagramPublication()
+        {
+            if (Status == CampaignStatus.Sending)
+                Status = CampaignStatus.Failed;
         }
 
         private static string ValidateJustification(string justificationText)
