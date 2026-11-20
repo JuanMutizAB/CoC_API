@@ -145,23 +145,34 @@ namespace CoC_API.Models
             }
         }
 
-        public void UpdateUser(string newName, string newEmail, string newPassword, List<UserCaracteristics>? newCaracteristics)
+        /// <summary>
+        /// Edição parcial: qualquer argumento a null mantém o valor atual do utilizador.
+        /// Se alguma validação falhar, o utilizador fica inalterado.
+        /// </summary>
+        public void UpdateUser(string? newName, string? newEmail, string? newPassword, List<UserCaracteristics>? newCaracteristics)
         {
-            var updatedCaracteristics = newCaracteristics?.ToList() ?? new List<UserCaracteristics>();
+            var previous = (nameValue, emailValue, passwordValue, caracteristicsValue);
 
-            var updatedUser = new User(
-                id,
-                newName,
-                newEmail,
-                newPassword,
-                birthDate,
-                taxId,
-                updatedCaracteristics.ToList());
+            try
+            {
+                if (newName is not null) name = newName;
+                if (newEmail is not null) email = newEmail;
+                if (newPassword is not null) password = newPassword;
 
-            nameValue = updatedUser.nameValue;
-            emailValue = updatedUser.emailValue;
-            passwordValue = updatedUser.passwordValue;
-            caracteristicsValue = updatedCaracteristics;
+                if (newCaracteristics is not null)
+                {
+                    var updated = newCaracteristics.ToList();
+                    if (!updated.Contains(UserCaracteristics.isActive))
+                        updated.Add(UserCaracteristics.isActive);
+
+                    caracteristics = updated;
+                }
+            }
+            catch
+            {
+                (nameValue, emailValue, passwordValue, caracteristicsValue) = previous;
+                throw;
+            }
         }
 
         public void DeactivateUser()
