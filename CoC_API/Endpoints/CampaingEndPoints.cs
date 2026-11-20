@@ -109,23 +109,34 @@ public static class CampaingEndPoints
             try
             {
                 var now = DateTimeOffset.UtcNow;
+
+                // Os campos não enviados no pedido mantêm o valor atual da campanha.
+                var name = request.Name ?? campaign.Name;
+                var description = request.Description ?? campaign.Description;
+                var modelMsg = request.ModelMsg ?? campaign.ModelMsg;
+                var type = request.Type ?? campaign.Type;
+                var publicationDate = request.PublicationDate ?? campaign.PublicationDate;
+                var imageUrl = request.ImageUrl is null
+                    ? campaign.ImageUrl
+                    : string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl;
+
                 var status = campaign.Status == CampaignStatus.ForChange
                     && user.HasCharacteristic(UserCaracteristics.isAprovando)
                     ? CampaignStatus.InReview
                     : campaign.Status;
                 if (status == CampaignStatus.Scheduled)
-                    status = Campaign.ResolvePublicationStatus(request.PublicationDate, now);
-                if (request.Type == CampaignType.Instagram && status == CampaignStatus.Sending)
+                    status = Campaign.ResolvePublicationStatus(publicationDate, now);
+                if (type == CampaignType.Instagram && status == CampaignStatus.Sending)
                     status = CampaignStatus.Scheduled;
 
                 campaign.EditCampaign(
-                    request.Name,
-                    request.Description,
-                    request.ModelMsg,
-                    request.Type,
+                    name,
+                    description,
+                    modelMsg,
+                    type,
                     status,
-                    request.PublicationDate,
-                    request.ImageUrl,
+                    publicationDate,
+                    imageUrl,
                     now);
 
                 await db.SaveChangesAsync();
