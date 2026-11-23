@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   CampaignStatus,
   CampaignType,
+  consumeCampaignFlashMessage,
   loadStoredCampaigns,
   saveStoredCampaign,
 } from "../models/campaignModel";
@@ -15,6 +16,7 @@ export function useCampaignListingController() {
   const navigate = useNavigate();
 
   const [campaigns, setCampaigns] = useState(() => loadStoredCampaigns());
+  const [statusMessage, setStatusMessage] = useState("");
 
   // Form input filter values
   const [nameFilter, setNameFilter] = useState("");
@@ -36,6 +38,11 @@ export function useCampaignListingController() {
 
   useEffect(() => {
     document.title = "Campaigns - CoC";
+    setCampaigns(loadStoredCampaigns());
+    const flash = consumeCampaignFlashMessage();
+    if (flash) {
+      setStatusMessage(flash);
+    }
   }, []);
 
   const handleApplyFilter = (e) => {
@@ -125,25 +132,19 @@ export function useCampaignListingController() {
   };
 
   const goToCreate = () => {
-    navigate("/campaigns/edit");
+    navigate("/campaigns/create");
   };
 
   const goToEdit = (campaign) => {
-    // Persist current campaign in sessionStorage for EditCampaignView
-    saveStoredCampaign({
-      id: campaign.id,
-      name: campaign.name,
-      description: campaign.description,
-      text: campaign.modelMsg || campaign.text || "",
-      image: campaign.imageUrl || null,
-      publishDate: campaign.publicationDate ? campaign.publicationDate.split("T")[0] : "",
-      publishTime: campaign.publicationDate && campaign.publicationDate.includes("T")
-        ? campaign.publicationDate.split("T")[1].slice(0, 5)
-        : "",
-      status: campaign.status,
-      type: campaign.type,
-    });
-    navigate(`/campaigns/edit`);
+    saveStoredCampaign(campaign);
+    if (
+      campaign.status === CampaignStatus.Canceled ||
+      campaign.status === CampaignStatus.Closed
+    ) {
+      navigate(`/campaigns/${campaign.id}/details`);
+    } else {
+      navigate(`/campaigns/${campaign.id}/edit`);
+    }
   };
 
   const goToAccounts = () => {
@@ -153,6 +154,7 @@ export function useCampaignListingController() {
   return {
     campaigns,
     visibleCampaigns,
+    statusMessage,
     nameFilter,
     setNameFilter,
     statusFilter,
