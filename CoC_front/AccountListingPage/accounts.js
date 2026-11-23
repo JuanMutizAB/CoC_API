@@ -108,11 +108,30 @@ function loadStoredAccounts() {
   try {
     const stored = sessionStorage.getItem("coc_accounts");
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length >= initialAccounts.length) {
+        return parsed;
+      }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Se a lista guardada tiver menos registos (ex: por edição isolada anterior),
+        // funde com as contas iniciais para garantir que os utilizadores não desaparecem
+        const merged = [...initialAccounts];
+        for (const item of parsed) {
+          const idx = merged.findIndex((m) => String(m.id) === String(item.id));
+          if (idx !== -1) {
+            merged[idx] = { ...merged[idx], ...item };
+          } else {
+            merged.push(item);
+          }
+        }
+        saveStoredAccounts(merged);
+        return merged;
+      }
     }
   } catch (e) {
     console.warn("Could not read from sessionStorage", e);
   }
+  saveStoredAccounts(initialAccounts);
   return initialAccounts;
 }
 
@@ -125,6 +144,7 @@ function saveStoredAccounts(list) {
 }
 
 const accounts = loadStoredAccounts();
+saveStoredAccounts(accounts);
 
 const accountsList = document.querySelector("#accounts-list");
 const searchInput = document.querySelector("#account-search");
@@ -137,8 +157,15 @@ let sortField = "name";
 let sortDirection = "ascending";
 
 function formatBirthDate(value) {
-  const [year, month, day] = value.split("-");
-  return `${day}-${month}-${year}`;
+  if (!value || typeof value !== "string") {
+    return "—";
+  }
+  const parts = value.split("-");
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    return `${day}-${month}-${year}`;
+  }
+  return value;
 }
 
 function getVisibleAccounts() {
@@ -147,11 +174,14 @@ function getVisibleAccounts() {
 
   return accounts
     .filter((account) => showInactive || account.active)
-    .filter((account) =>
-      `${account.name} ${account.email}`.toLocaleLowerCase().includes(search)
-    )
+    .filter((account) => {
+      const rolesStr = (account.caracteristics || []).join(" ");
+      return `${account.name} ${account.email} ${rolesStr}`.toLocaleLowerCase().includes(search);
+    })
     .sort((left, right) => {
-      const comparison = left[sortField].localeCompare(right[sortField], "pt-PT");
+      const leftVal = String(left[sortField] ?? "");
+      const rightVal = String(right[sortField] ?? "");
+      const comparison = leftVal.localeCompare(rightVal, "pt-PT");
       return sortDirection === "ascending" ? comparison : -comparison;
     });
 }
@@ -165,6 +195,54 @@ function createCell(className, text) {
   return cell;
 }
 
+function createRolesCell(caracteristics = []) {
+  const cell = document.createElement("td");
+  cell.className = "roles-cell";
+
+  const wrap = document.createElement("div");
+  wrap.className = "roles-badges";
+
+  const chars = (Array.isArray(caracteristics)
+    ? caracteristics
+    : String(caracteristics || "").split(",")
+  )
+    .map((c) => c.trim().toLowerCase())
+    .filter(Boolean);
+
+  const hasAdmin = chars.some((c) => c === "admin");
+  const hasAprovando = chars.some((c) => c === "isaprovando" || c === "aprovando");
+  const hasAprovador = chars.some((c) => c === "isaprovador" || c === "aprovador");
+
+  if (!hasAdmin && !hasAprovando && !hasAprovador) {
+    const defaultBadge = document.createElement("span");
+    defaultBadge.className = "role-badge role-badge--none";
+    defaultBadge.textContent = "—";
+    wrap.append(defaultBadge);
+  } else {
+    if (hasAdmin) {
+      const badge = document.createElement("span");
+      badge.className = "role-badge role-badge--admin";
+      badge.textContent = "Admin";
+      wrap.append(badge);
+    }
+    if (hasAprovador) {
+      const badge = document.createElement("span");
+      badge.className = "role-badge role-badge--aprovador";
+      badge.textContent = "Aprovador";
+      wrap.append(badge);
+    }
+    if (hasAprovando) {
+      const badge = document.createElement("span");
+      badge.className = "role-badge role-badge--aprovando";
+      badge.textContent = "Aprovando";
+      wrap.append(badge);
+    }
+  }
+
+  cell.append(wrap);
+  return cell;
+}
+
 function renderAccounts() {
   const visibleAccounts = getVisibleAccounts();
   accountsList.replaceChildren();
@@ -172,7 +250,7 @@ function renderAccounts() {
   if (visibleAccounts.length === 0) {
     const row = document.createElement("tr");
     const cell = createCell("empty-state", "No accounts match your search.");
-    cell.colSpan = 4;
+    cell.colSpan = 5;
     row.append(cell);
     accountsList.append(row);
   } else {
@@ -194,11 +272,6 @@ function renderAccounts() {
       }
 
       nameCell.append(nameContent);
-      row.append(
-        nameCell,
-        createCell("", formatBirthDate(account.birthDate)),
-        createCell("account-email", account.email)
-      );
 
       const actionCell = document.createElement("td");
       const editButton = document.createElement("button");
@@ -220,7 +293,14 @@ function renderAccounts() {
       deactivateButton.setAttribute("aria-label", `Deactivate ${account.name}`);
       rowActions.append(editButton, deactivateButton);
       actionCell.append(rowActions);
-      row.append(actionCell);
+
+      row.append(
+        nameCell,
+        createRolesCell(account.caracteristics),
+        createCell("", formatBirthDate(account.birthDate)),
+        createCell("account-email", account.email),
+        actionCell
+      );
       accountsList.append(row);
     }
   }
@@ -260,11 +340,54 @@ for (const button of sortButtons) {
 }
 
 document.querySelector("#create-account").addEventListener("click", () => {
-  actionMessage.textContent = "The account form is not part of this listing page yet.";
+  window.location.href = "../AccountCreationPage/create-account.html";
 });
 
 document.querySelector("#back-to-campaigns").addEventListener("click", () => {
   actionMessage.textContent = "The campaigns page is not part of this demo yet.";
+});
+
+// ── Modal de confirmação para desativação ──
+const deactivateModal = document.querySelector("#deactivate-modal");
+const modalAccountName = document.querySelector("#modal-account-name");
+const modalCancelBtn = document.querySelector("#modal-cancel-btn");
+const modalConfirmBtn = document.querySelector("#modal-confirm-btn");
+let pendingDeactivateAccount = null;
+
+function openDeactivateModal(account) {
+  pendingDeactivateAccount = account;
+  modalAccountName.textContent = account.name;
+  deactivateModal.hidden = false;
+  modalConfirmBtn.focus();
+}
+
+function closeDeactivateModal() {
+  deactivateModal.hidden = true;
+  pendingDeactivateAccount = null;
+}
+
+modalCancelBtn.addEventListener("click", closeDeactivateModal);
+
+deactivateModal.addEventListener("click", (event) => {
+  if (event.target === deactivateModal) {
+    closeDeactivateModal();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !deactivateModal.hidden) {
+    closeDeactivateModal();
+  }
+});
+
+modalConfirmBtn.addEventListener("click", () => {
+  if (pendingDeactivateAccount && pendingDeactivateAccount.active) {
+    pendingDeactivateAccount.active = false;
+    saveStoredAccounts(accounts);
+    actionMessage.textContent = `${pendingDeactivateAccount.name} was deactivated in this demo.`;
+    renderAccounts();
+  }
+  closeDeactivateModal();
 });
 
 accountsList.addEventListener("click", (event) => {
@@ -279,11 +402,13 @@ accountsList.addEventListener("click", (event) => {
   }
 
   if (actionButton.dataset.accountAction === "edit") {
+    saveStoredAccounts(accounts);
     const chars = (account.caracteristics || []).join(",");
     const params = new URLSearchParams({
       id: String(account.id),
       name: account.name,
       email: account.email,
+      birthDate: account.birthDate || "",
       caracteristics: chars
     });
     window.location.href = `../EditUserPage/edit-user.html?${params.toString()}`;
@@ -291,11 +416,19 @@ accountsList.addEventListener("click", (event) => {
   }
 
   if (actionButton.dataset.accountAction === "deactivate" && account.active) {
-    account.active = false;
-    saveStoredAccounts(accounts);
-    actionMessage.textContent = `${account.name} was deactivated in this demo.`;
-    renderAccounts();
+    openDeactivateModal(account);
   }
 });
 
 renderAccounts();
+
+// ── Exibir mensagem de confirmação vinda de Edit ou Create ──
+try {
+  const flashMessage = sessionStorage.getItem("coc_flash_message");
+  if (flashMessage) {
+    sessionStorage.removeItem("coc_flash_message");
+    actionMessage.textContent = flashMessage;
+  }
+} catch (e) {
+  console.warn("Could not read flash message from sessionStorage", e);
+}

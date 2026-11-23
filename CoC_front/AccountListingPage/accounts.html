@@ -67,6 +67,7 @@
                   Name <span class="sort-indicator" aria-hidden="true">↑</span>
                 </button>
               </th>
+              <th scope="col">Roles</th>
               <th id="birthdate-heading" scope="col" aria-sort="none">
                 <button class="sort-button" type="button" data-sort="birthDate">
                   Birth date <span class="sort-indicator" aria-hidden="true">↕</span>
@@ -86,6 +87,28 @@
       <p class="action-message" id="action-message" role="status" aria-live="polite"></p>
     </section>
   </main>
+
+  <!-- Modal de confirmação para desativar conta -->
+  <div class="modal-backdrop" id="deactivate-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <div class="modal-icon-wrap" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 9v4m0 4h.01M12 3c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9z"></path>
+          </svg>
+        </div>
+        <h2 id="modal-title" class="modal-title">Deactivate Account</h2>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to deactivate the account for <strong id="modal-account-name"></strong>?</p>
+        <p class="modal-subtext">The user will be marked as inactive and will no longer have active permissions.</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="modal-button modal-button--cancel" id="modal-cancel-btn">Cancel</button>
+        <button type="button" class="modal-button modal-button--confirm" id="modal-confirm-btn">Deactivate</button>
+      </div>
+    </div>
+  </div>
 
   <script src="accounts.js"></script>
 </body>
