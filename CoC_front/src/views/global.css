@@ -32,15 +32,13 @@ button {
   cursor: pointer;
 }
 
-/* ── Page wrapper ── */
+/* ── Shared page shell for management views ── */
 
-.create-account-page {
+.app-page {
   width: 100%;
   min-height: 100vh;
   padding: 0 0 56px;
 }
-
-/* ── Page header ── */
 
 .page-header {
   display: flex;
@@ -49,13 +47,13 @@ button {
   padding: 32px clamp(24px, 5vw, 80px);
   overflow: hidden;
   background-color: var(--askblue-blue);
-  background-image: url("../FundoTeams2025_askblueGrafismo.jpg");
+  background-image: url("./assets/FundoTeams2025_askblueGrafismo.jpg");
   background-position: right center;
   background-size: cover;
   color: #ffffff;
 }
 
-.brand {
+.page-header .brand {
   display: inline-flex;
   align-items: center;
   gap: 28px;
@@ -64,7 +62,7 @@ button {
   text-decoration: none;
 }
 
-.brand img {
+.page-header .brand img {
   display: block;
   width: 210px;
   max-width: 100%;
@@ -78,7 +76,7 @@ button {
   gap: 5px;
 }
 
-.brand-name {
+.page-header .brand-name {
   font-size: 17px;
   font-weight: 400;
   letter-spacing: 0;
@@ -126,7 +124,7 @@ button {
 
 /* ── Content card ── */
 
-.create-account-card {
+.content-card {
   overflow: hidden;
   width: min(1440px, calc(100% - 80px));
   margin: 36px auto 0;
@@ -137,15 +135,13 @@ button {
   box-shadow: none;
 }
 
-/* ── Toolbar ── */
+/* ── Toolbar & Section Heading ── */
 
 .toolbar {
   display: flex;
   align-items: center;
   gap: 20px;
 }
-
-/* ── Section heading ── */
 
 .section-heading {
   display: flex;
@@ -189,14 +185,12 @@ button {
   white-space: nowrap;
 }
 
-/* ── Form container with optimal proportions ── */
+/* ── Shared form controls (Create & Edit) ── */
 
-.create-account-form {
+.management-form {
   max-width: 860px;
   margin-top: 8px;
 }
-
-/* ── Form grid & fields ── */
 
 .form-grid {
   display: grid;
@@ -241,47 +235,6 @@ button {
 
 .form-group input.invalid {
   border-color: #c93636;
-}
-
-/* ── Interactive Date Picker Indicator in AskBlue Blue ── */
-
-input[type="date"] {
-  accent-color: var(--askblue-blue);
-}
-
-input[type="date"]::-webkit-datetime-edit-day-field:focus,
-input[type="date"]::-webkit-datetime-edit-month-field:focus,
-input[type="date"]::-webkit-datetime-edit-year-field:focus {
-  background-color: var(--askblue-blue);
-  color: #ffffff;
-  outline: none;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  padding: 6px;
-  margin-right: 4px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23030cef' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 18px 18px;
-  background-color: #f0f3ff;
-  border: 1px solid #ccd5e3;
-  border-radius: 4px;
-  transition: all 0.2s ease-in-out;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator:hover {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
-  background-color: var(--askblue-blue);
-  border-color: var(--askblue-blue);
-  box-shadow: 0 0 0 3px rgba(3, 12, 239, 0.25);
-  transform: scale(1.1);
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator:active {
-  background-color: var(--askblue-blue-hover);
-  transform: scale(0.98);
 }
 
 .field-hint {
@@ -464,28 +417,6 @@ input[type="date"]::-webkit-calendar-picker-indicator:active {
   stroke-width: 2;
 }
 
-.cancel-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid #ccd5e3;
-  border-radius: 0;
-  background: #ffffff;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 700;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
-}
-
-.cancel-button:hover {
-  border-color: #a0a9ba;
-  color: var(--ink);
-  background: #f8f9fc;
-}
-
 .action-message {
   min-height: 18px;
   margin: 16px 0 0;
@@ -523,11 +454,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:active {
     padding: 38px clamp(36px, 5vw, 96px);
   }
 
-  .brand {
+  .page-header .brand {
     gap: 34px;
   }
 
-  .brand img {
+  .page-header .brand img {
     width: 250px;
   }
 
@@ -535,7 +466,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:active {
     gap: 8px;
   }
 
-  .brand-name {
+  .page-header .brand-name {
     font-size: 19px;
   }
 
@@ -554,13 +485,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:active {
     height: 20px;
   }
 
-  .create-account-card {
+  .content-card {
     width: calc(100% - clamp(28px, 5vw, 80px));
     margin-top: 44px;
     padding: 40px clamp(36px, 3.5vw, 64px) 32px;
   }
 
-  .create-account-form {
+  .management-form {
     max-width: 900px;
   }
 
@@ -644,8 +575,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:active {
     gap: 20px;
   }
 
-  .primary-button,
-  .cancel-button {
+  .primary-button {
     min-height: 54px;
     gap: 10px;
     font-size: 16px;
@@ -671,15 +601,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:active {
     padding: 24px;
   }
 
-  .brand {
+  .page-header .brand {
     gap: 16px;
   }
 
-  .brand img {
+  .page-header .brand img {
     width: 135px;
   }
 
-  .brand-name {
+  .page-header .brand-name {
     font-size: 13px;
   }
 
@@ -687,7 +617,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:active {
     font-size: 26px;
   }
 
-  .create-account-card {
+  .content-card {
     width: calc(100% - 28px);
     margin-top: 20px;
     padding: 22px 16px 18px;
@@ -712,8 +642,40 @@ input[type="date"]::-webkit-calendar-picker-indicator:active {
     gap: 12px;
   }
 
-  .primary-button,
-  .cancel-button {
+  .primary-button {
     flex: 1 1 auto;
+  }
+}
+
+/* ── Small Mobile (≤ 420px) ── */
+
+@media (max-width: 420px) {
+  .page-header {
+    min-height: 132px;
+    padding: 20px 16px;
+  }
+
+  .page-header .brand {
+    gap: 12px;
+  }
+
+  .page-header .brand img {
+    width: 105px;
+  }
+
+  .page-header .brand-name {
+    font-size: 11px;
+  }
+
+  .page-title {
+    font-size: 21px;
+  }
+
+  .demo-badge {
+    display: none;
+  }
+
+  .primary-button {
+    font-size: 13px;
   }
 }

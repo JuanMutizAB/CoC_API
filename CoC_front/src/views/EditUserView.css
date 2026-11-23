@@ -1,0 +1,29 @@
+.edit-user-page .characteristic-toggle.is-locked {
+  cursor: not-allowed;
+}
+
+.edit-user-page .characteristic-toggle.is-locked input + .checkbox-mark {
+  background: #7d85f5;
+  border-color: #7d85f5;
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.edit-user-page .characteristic-toggle.is-locked .characteristic-label {
+  cursor: not-allowed;
+  color: var(--ink);
+}
+
+.locked-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  background: #f1f4f9;
+  border: 1px solid #d3dbe6;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 2px;
+}
