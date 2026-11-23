@@ -188,7 +188,14 @@ button {
   white-space: nowrap;
 }
 
-/* ── Form layout ── */
+/* ── Form container with optimal proportions ── */
+
+.edit-user-form {
+  max-width: 860px;
+  margin-top: 8px;
+}
+
+/* ── Form grid & fields ── */
 
 .form-grid {
   display: grid;
@@ -200,6 +207,10 @@ button {
 .form-group {
   display: flex;
   flex-direction: column;
+}
+
+.form-group--full {
+  grid-column: 1 / -1;
 }
 
 .form-group label {
@@ -231,12 +242,67 @@ button {
   border-color: #c93636;
 }
 
+.field-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .error-message {
   display: block;
   min-height: 18px;
   margin-top: 5px;
   color: #c93636;
   font-size: 12px;
+}
+
+/* ── Password field with toggle ── */
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 58px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--askblue-blue);
+  font: inherit;
+  cursor: pointer;
+}
+
+.eye-icon {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.eye-icon-visible {
+  display: none;
+}
+
+.password-toggle[aria-pressed="true"] .eye-icon-hidden {
+  display: none;
+}
+
+.password-toggle[aria-pressed="true"] .eye-icon-visible {
+  display: block;
 }
 
 /* ── Roles / Checkboxes section ── */
@@ -317,6 +383,40 @@ button {
   color: #374258;
 }
 
+.characteristic-toggle.is-locked {
+  cursor: not-allowed;
+}
+
+.characteristic-toggle.is-locked input + .checkbox-mark {
+  background: #7d85f5;
+  border-color: #7d85f5;
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.characteristic-toggle.is-locked .characteristic-label {
+  cursor: not-allowed;
+  color: var(--ink);
+}
+
+.locked-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  background: #f1f4f9;
+  border: 1px solid #d3dbe6;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 2px;
+}
+
+.locked-badge[hidden] {
+  display: none !important;
+}
+
 /* ── Actions ── */
 
 .form-actions {
@@ -356,28 +456,6 @@ button {
   stroke-width: 2;
 }
 
-.cancel-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid #ccd5e3;
-  border-radius: 0;
-  background: #ffffff;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 700;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
-}
-
-.cancel-button:hover {
-  border-color: #a0a9ba;
-  color: var(--ink);
-  background: #f8f9fc;
-}
-
 .action-message {
   min-height: 18px;
   margin: 16px 0 0;
@@ -391,6 +469,20 @@ button {
 
 .action-message.error {
   color: #c93636;
+}
+
+/* ── Utility ── */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ── Desktop (≥ 1024px) ── */
@@ -436,6 +528,10 @@ button {
     width: calc(100% - clamp(28px, 5vw, 80px));
     margin-top: 44px;
     padding: 40px clamp(36px, 3.5vw, 64px) 32px;
+  }
+
+  .edit-user-form {
+    max-width: 900px;
   }
 
   .toolbar {
@@ -518,8 +614,7 @@ button {
     gap: 20px;
   }
 
-  .primary-button,
-  .cancel-button {
+  .primary-button {
     min-height: 54px;
     gap: 10px;
     font-size: 16px;
@@ -586,8 +681,7 @@ button {
     gap: 12px;
   }
 
-  .primary-button,
-  .cancel-button {
+  .primary-button {
     flex: 1 1 auto;
   }
 }
