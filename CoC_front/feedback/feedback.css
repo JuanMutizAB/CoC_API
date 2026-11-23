@@ -46,7 +46,7 @@ button {
   padding: 32px clamp(24px, 5vw, 80px);
   overflow: hidden;
   background-color: var(--askblue-blue);
-  background-image: url("FundoTeams2025_askblueGrafismo.jpg");
+  background-image: url("../FundoTeams2025_askblueGrafismo.jpg");
   background-position: right center;
   background-size: cover;
   color: #fff;
