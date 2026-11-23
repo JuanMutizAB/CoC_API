@@ -63,6 +63,7 @@ export function useEditCampaignController() {
 
   const goToFeedback = () => navigate("/campaigns/feedback");
   const goToAccounts = () => navigate("/accounts");
+  const goToCampaigns = () => navigate("/campaigns");
 
   return {
     name,
@@ -82,5 +83,6 @@ export function useEditCampaignController() {
     handleSubmit,
     goToFeedback,
     goToAccounts,
+    goToCampaigns,
   };
 }

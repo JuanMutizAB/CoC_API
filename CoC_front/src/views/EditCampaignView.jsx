@@ -24,6 +24,7 @@ export default function EditCampaignView() {
     handleSubmit,
     goToFeedback,
     goToAccounts,
+    goToCampaigns,
   } = useEditCampaignController();
 
   return (
@@ -40,6 +41,13 @@ export default function EditCampaignView() {
             <p>Update the campaign details, content, image, and schedule.</p>
           </div>
           <div className="heading-actions">
+            <button
+              className="back-button"
+              type="button"
+              onClick={goToCampaigns}
+            >
+              Back to Campaigns
+            </button>
             <button
               className="back-button"
               type="button"

@@ -80,7 +80,7 @@ export function useAccountListingController() {
 
   const goToCreate = () => navigate("/accounts/create");
   const goToEdit = (id) => navigate(`/accounts/${id}/edit`);
-  const handleBackToCampaigns = () => navigate("/campaigns/edit");
+  const handleBackToCampaigns = () => navigate("/campaigns");
 
   return {
     accounts,

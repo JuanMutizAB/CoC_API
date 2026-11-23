@@ -122,6 +122,8 @@ namespace CoC_API.Models
         private Campaign()
         {
             name = description = modelMsg = string.Empty;
+            justificationText = string.Empty;
+            motivo = Motivo.None;
         }
 
         public Campaign(string name, string description, string modelMsg, CampaignType type,
@@ -138,8 +140,8 @@ namespace CoC_API.Models
             PublicationDate = publicationDate;
             ImageUrl = imageUrl;
             UserId = userId;
-            justificationText = null;
-            motivo = null;
+            justificationText = string.Empty;
+            motivo = Motivo.None;
         }
 
         public void EditCampaign(string name, string description, string modelMsg, CampaignType type,
