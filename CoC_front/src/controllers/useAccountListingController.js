@@ -80,8 +80,7 @@ export function useAccountListingController() {
 
   const goToCreate = () => navigate("/accounts/create");
   const goToEdit = (id) => navigate(`/accounts/${id}/edit`);
-  const handleBackToCampaigns = () =>
-    setStatusMessage("The campaigns page is not part of this demo yet.");
+  const handleBackToCampaigns = () => navigate("/campaigns/edit");
 
   return {
     accounts,
