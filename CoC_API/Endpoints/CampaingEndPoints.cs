@@ -88,7 +88,7 @@ public static class CampaingEndPoints
             }
             catch (ArgumentException ex)
             {
-                return Results.BadRequest(new { erro = ex.Message });
+                return Results.BadRequest(new { erro = FormatErrorMessage(ex) });
             }
         });
 
@@ -169,7 +169,7 @@ public static class CampaingEndPoints
             }
             catch (ArgumentException ex)
             {
-                return Results.BadRequest(new { erro = ex.Message });
+                return Results.BadRequest(new { erro = FormatErrorMessage(ex) });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -222,7 +222,7 @@ public static class CampaingEndPoints
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
             {
-                return Results.BadRequest(new { erro = ex.Message });
+                return Results.BadRequest(new { erro = FormatErrorMessage(ex) });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -255,7 +255,7 @@ public static class CampaingEndPoints
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
             {
-                return Results.BadRequest(new { erro = ex.Message });
+                return Results.BadRequest(new { erro = FormatErrorMessage(ex) });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -289,7 +289,7 @@ public static class CampaingEndPoints
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
             {
-                return Results.BadRequest(new { erro = ex.Message });
+                return Results.BadRequest(new { erro = FormatErrorMessage(ex) });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -323,7 +323,7 @@ public static class CampaingEndPoints
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
             {
-                return Results.BadRequest(new { erro = ex.Message });
+                return Results.BadRequest(new { erro = FormatErrorMessage(ex) });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -389,5 +389,18 @@ public static class CampaingEndPoints
 
         var owner = await db.Users.FindAsync(campaign.UserId);
         return owner is not null && owner.HasCharacteristic(UserCaracteristics.isAprovando);
+    }
+
+    private static string FormatErrorMessage(Exception ex)
+    {
+        var message = ex.Message;
+        if (ex is ArgumentException { ParamName.Length: > 0 } argEx)
+        {
+            var suffix = $" (Parameter '{argEx.ParamName}')";
+            if (message.EndsWith(suffix, StringComparison.Ordinal))
+                return message[..^suffix.Length];
+        }
+
+        return message;
     }
 }

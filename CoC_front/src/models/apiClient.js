@@ -50,11 +50,12 @@ export async function apiRequest(
   }
 
   if (!response.ok) {
-    const message =
+    const rawMessage =
       payload?.erro ||
       payload?.message ||
       payload?.title ||
       `Request failed (${response.status})`;
+    const message = String(rawMessage).replace(/\s*\(Parameter\s+'[^']*'\)\s*$/i, "");
     throw new ApiError(message, response.status, payload);
   }
 

@@ -961,6 +961,8 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
 
     private sealed record ReasonResponse(string? JustificationText, Motivo? Motivo);
 
+    private sealed record ErrorResponse(string? Erro);
+
     private static class UserIds
     {
         public const int ApprovalOwner = 1;
