@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CoC_API.Context;
 using CoC_API.DTOs.Request;
 using CoC_API.Models;
@@ -46,8 +47,12 @@ public static class UserEndpoints
             }
         }).RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
 
-        app.MapPut("/users/{id:int}/deactivate", async (int id, CoC_DbContext db) =>
+        app.MapPut("/users/{id:int}/deactivate", async (int id, ClaimsPrincipal principal, CoC_DbContext db) =>
         {
+            var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (int.TryParse(idValue, out var currentUserId) && currentUserId == id)
+                return Results.BadRequest(new { erro = "You cannot deactivate your own account." });
+
             var user = await db.Users.FindAsync(id);
             if (user is null)
                 return Results.NotFound();
