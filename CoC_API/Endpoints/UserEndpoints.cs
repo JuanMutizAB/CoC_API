@@ -43,7 +43,7 @@ public static class UserEndpoints
             }
             catch (Exception ex) when (ex is ArgumentException or FormatException)
             {
-                return Results.BadRequest(new { erro = ex.Message });
+                return Results.BadRequest(new { erro = FormatErrorMessage(ex) });
             }
         }).RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
 
@@ -65,7 +65,7 @@ public static class UserEndpoints
             }
             catch (InvalidOperationException ex)
             {
-                return Results.BadRequest(new { erro = ex.Message });
+                return Results.BadRequest(new { erro = FormatErrorMessage(ex) });
             }
         }).RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
 
@@ -96,8 +96,21 @@ public static class UserEndpoints
             }
             catch (Exception ex) when (ex is ArgumentException or FormatException)
             {
-                return Results.BadRequest(new { erro = ex.Message });
+                return Results.BadRequest(new { erro = FormatErrorMessage(ex) });
             }
         }).RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
+    }
+
+    private static string FormatErrorMessage(Exception ex)
+    {
+        var message = ex.Message;
+        if (ex is ArgumentException { ParamName.Length: > 0 } argEx)
+        {
+            var suffix = $" (Parameter '{argEx.ParamName}')";
+            if (message.EndsWith(suffix, StringComparison.Ordinal))
+                return message[..^suffix.Length];
+        }
+
+        return message;
     }
 }
