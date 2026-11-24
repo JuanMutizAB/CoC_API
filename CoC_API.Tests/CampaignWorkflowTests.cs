@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using CoC_API.Context;
 using CoC_API.Integrations;
 using CoC_API.Models;
@@ -14,6 +15,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Data.Sqlite;
+
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace CoC_API.Tests;
 
@@ -169,6 +172,185 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LinkedInClientPublishesMemberTextPostAndReturnsPostId()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.Created);
+        response.Headers.Add("x-restli-id", "urn:li:share:post-123");
+        var handler = new QueueHttpMessageHandler(response);
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://api.linkedin.com/")
+        };
+        var client = new LinkedInApiClient(
+            httpClient,
+            new LinkedInPublishingOptions(
+                "\r\ntest-token\r\n",
+                "urn:li:person:member-123",
+                "202611"));
+        var campaign = new Campaign(
+            "LinkedIn campaign",
+            "Test only",
+            "A test post",
+            CampaignType.LinkedIn,
+            CampaignStatus.Scheduled,
+            DateTimeOffset.UtcNow.AddMinutes(5),
+            null,
+            UserIds.StandardOwner,
+            DateTimeOffset.UtcNow);
+
+        var postId = await client.PublishPostAsync(campaign, CancellationToken.None);
+
+        Assert.Equal("urn:li:share:post-123", postId);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("https://api.linkedin.com/rest/posts", request.Uri);
+        Assert.Equal("test-token", request.BearerToken);
+        Assert.Equal("202611", request.LinkedInVersion);
+        Assert.Equal("2.0.0", request.RestliProtocolVersion);
+        Assert.Contains("\"author\":\"urn:li:person:member-123\"", request.Body);
+        Assert.Contains("\"commentary\":\"LinkedIn campaign\\nA test post\"", request.Body);
+    }
+
+    [Fact]
+    public async Task LinkedInClientRejectsTokensWithEmbeddedNewLines()
+    {
+        var handler = new QueueHttpMessageHandler();
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://api.linkedin.com/")
+        };
+        var client = new LinkedInApiClient(
+            httpClient,
+            new LinkedInPublishingOptions(
+                "test-\ntoken",
+                "urn:li:person:member-123",
+                "202611"));
+        var campaign = new Campaign(
+            "LinkedIn campaign",
+            "Test only",
+            "A test post",
+            CampaignType.LinkedIn,
+            CampaignStatus.Scheduled,
+            DateTimeOffset.UtcNow.AddMinutes(5),
+            null,
+            UserIds.StandardOwner,
+            DateTimeOffset.UtcNow);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => client.PublishPostAsync(campaign, CancellationToken.None));
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task LinkedInClientUploadsCampaignImageBeforePublishingPost()
+    {
+        var imageResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(Encoding.UTF8.GetBytes("image-bytes"))
+        };
+        imageResponse.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        var initializeResponse = JsonResponse(
+            HttpStatusCode.OK,
+            """{"value":{"uploadUrl":"https://www.linkedin.com/dms-uploads/upload-123","image":"urn:li:image:image-123"}}""");
+        var uploadResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        var postResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        postResponse.Headers.Add("x-restli-id", "urn:li:share:post-image-123");
+        var handler = new QueueHttpMessageHandler(
+            imageResponse,
+            initializeResponse,
+            uploadResponse,
+            postResponse);
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://api.linkedin.com/")
+        };
+        var client = new LinkedInApiClient(
+            httpClient,
+            new LinkedInPublishingOptions(
+                "test-token",
+                "urn:li:person:member-123",
+                "202611"));
+        var campaign = new Campaign(
+            "LinkedIn campaign",
+            "Test only",
+            "A test post",
+            CampaignType.LinkedIn,
+            CampaignStatus.Scheduled,
+            DateTimeOffset.UtcNow.AddMinutes(5),
+            "https://8.8.8.8/campaign.png",
+            UserIds.StandardOwner,
+            DateTimeOffset.UtcNow);
+
+        var postId = await client.PublishPostAsync(campaign, CancellationToken.None);
+
+        Assert.Equal("urn:li:share:post-image-123", postId);
+        Assert.Equal(4, handler.Requests.Count);
+        Assert.Equal(HttpMethod.Get, handler.Requests[0].Method);
+        Assert.Null(handler.Requests[0].BearerToken);
+        Assert.Equal(HttpMethod.Post, handler.Requests[1].Method);
+        Assert.Contains("initializeUpload", handler.Requests[1].Uri);
+        Assert.Equal(HttpMethod.Put, handler.Requests[2].Method);
+        Assert.Equal("https://www.linkedin.com/dms-uploads/upload-123", handler.Requests[2].Uri);
+        Assert.Equal("test-token", handler.Requests[2].BearerToken);
+        Assert.Contains("\"id\":\"urn:li:image:image-123\"", handler.Requests[3].Body);
+    }
+
+    [Fact]
+    public async Task LinkedInClientRejectsPrivateCampaignImageUrls()
+    {
+        using var httpClient = new HttpClient(new QueueHttpMessageHandler())
+        {
+            BaseAddress = new Uri("https://api.linkedin.com/")
+        };
+        var client = new LinkedInApiClient(
+            httpClient,
+            new LinkedInPublishingOptions(
+                "test-token",
+                "urn:li:person:member-123",
+                "202611"));
+        var campaign = new Campaign(
+            "LinkedIn campaign",
+            "Test only",
+            "A test post",
+            CampaignType.LinkedIn,
+            CampaignStatus.Scheduled,
+            DateTimeOffset.UtcNow.AddMinutes(5),
+            "https://127.0.0.1/campaign.png",
+            UserIds.StandardOwner,
+            DateTimeOffset.UtcNow);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => client.PublishPostAsync(campaign, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task LinkedInPublishingWorkerClosesCampaignAndStoresPostId()
+    {
+        var campaign = await CreateDueLinkedInCampaignAsync();
+        var imageResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(Encoding.UTF8.GetBytes("image-bytes"))
+        };
+        imageResponse.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        var postResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        postResponse.Headers.Add("x-restli-id", "urn:li:share:post-456");
+        await RunLinkedInPublishingWorkerOnceAsync(new QueueHttpMessageHandler(
+            imageResponse,
+            JsonResponse(
+                HttpStatusCode.OK,
+                """{"value":{"uploadUrl":"https://www.linkedin.com/dms-uploads/upload-456","image":"urn:li:image:image-456"}}"""),
+            new HttpResponseMessage(HttpStatusCode.Created),
+            postResponse));
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        var storedCampaign = await db.Campaigns.AsNoTracking().SingleAsync(item => item.Id == campaign.Id);
+
+        Assert.Equal(CampaignStatus.Closed, storedCampaign.Status);
+        Assert.Equal("urn:li:share:post-456", storedCampaign.LinkedInPostId);
+    }
+
+    [Fact]
     public async Task PublishingWorkerClosesCampaignAndStoresInstagramMediaId()
     {
         var campaign = await CreateDueInstagramCampaignAsync();
@@ -230,7 +412,9 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
                 publicationDate = DateTimeOffset.UtcNow.AddMinutes(20),
                 imageUrl = type == CampaignType.Instagram
                     ? "https://images.example.test/campaign.jpg"
-                    : null
+                    : type == CampaignType.LinkedIn
+                        ? "https://8.8.8.8/campaign.png"
+                        : null
             });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
@@ -243,6 +427,22 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
     {
         using var owner = await LoginAsync("standard@example.com", "StandardPass123!");
         var campaign = await CreateCampaignAsync(owner, CampaignType.Instagram, UserIds.StandardOwner);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        await db.Campaigns
+            .Where(item => item.Id == campaign.Id)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(
+                item => item.PublicationDate,
+                DateTimeOffset.UtcNow.AddMinutes(-1)));
+
+        return campaign;
+    }
+
+    private async Task<CampaignResponse> CreateDueLinkedInCampaignAsync()
+    {
+        using var owner = await LoginAsync("standard@example.com", "StandardPass123!");
+        var campaign = await CreateCampaignAsync(owner, CampaignType.LinkedIn, UserIds.StandardOwner);
 
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
@@ -269,6 +469,26 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             instagram,
             new InstagramPublishingOptions("test-token", "account-789", "v22.0"),
             factory.Services.GetRequiredService<ILogger<InstagramPublishingService>>());
+
+        await service.PublishDueCampaignsAsync(CancellationToken.None);
+    }
+
+    private async Task RunLinkedInPublishingWorkerOnceAsync(QueueHttpMessageHandler handler)
+    {
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://api.linkedin.com/")
+        };
+        var options = new LinkedInPublishingOptions(
+            "test-token",
+            "urn:li:person:member-123",
+            "202611");
+        var linkedIn = new LinkedInApiClient(httpClient, options);
+        var service = new LinkedInPublishingService(
+            factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            linkedIn,
+            options,
+            factory.Services.GetRequiredService<ILogger<LinkedInPublishingService>>());
 
         await service.PublishDueCampaignsAsync(CancellationToken.None);
     }
@@ -401,7 +621,13 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
                 request.Method,
                 request.RequestUri!.ToString(),
                 body,
-                request.Headers.Authorization?.Parameter));
+                request.Headers.Authorization?.Parameter,
+                request.Headers.TryGetValues("Linkedin-Version", out var versions)
+                    ? versions.Single()
+                    : null,
+                request.Headers.TryGetValues("X-Restli-Protocol-Version", out var protocolVersions)
+                    ? protocolVersions.Single()
+                    : null));
 
             return responses.Dequeue();
         }
@@ -411,5 +637,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         HttpMethod Method,
         string Uri,
         string Body,
-        string? BearerToken);
+        string? BearerToken,
+        string? LinkedInVersion,
+        string? RestliProtocolVersion);
 }

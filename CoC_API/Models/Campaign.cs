@@ -106,6 +106,8 @@ namespace CoC_API.Models
 
         public string? InstagramMediaId { get; private set; }
 
+        public string? LinkedInPostId { get; private set; }
+
         public int UserId
         {
             get => userId;
@@ -173,7 +175,7 @@ namespace CoC_API.Models
                 throw new InvalidOperationException("Only campaigns in review can be approved.");
 
             var publicationStatus = ResolvePublicationStatus(PublicationDate, DateTimeOffset.UtcNow);
-            Status = Type == CampaignType.Instagram
+            Status = Type is CampaignType.Instagram or CampaignType.LinkedIn
                 ? CampaignStatus.Approved
                 : publicationStatus;
         }
@@ -246,6 +248,23 @@ namespace CoC_API.Models
         }
 
         public void FailInstagramPublication()
+        {
+            if (Status == CampaignStatus.Sending)
+                Status = CampaignStatus.Failed;
+        }
+
+        public void CompleteLinkedInPublication(string postId)
+        {
+            if (Status != CampaignStatus.Sending)
+                throw new InvalidOperationException("The campaign is not being published.");
+            if (string.IsNullOrWhiteSpace(postId))
+                throw new ArgumentException("LinkedIn post ID cannot be empty.", nameof(postId));
+
+            LinkedInPostId = postId;
+            Status = CampaignStatus.Closed;
+        }
+
+        public void FailLinkedInPublication()
         {
             if (Status == CampaignStatus.Sending)
                 Status = CampaignStatus.Failed;

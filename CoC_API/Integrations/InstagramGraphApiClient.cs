@@ -33,7 +33,7 @@ public sealed class InstagramGraphApiClient(
             new Dictionary<string, string>
             {
                 ["image_url"] = imageUri.AbsoluteUri,
-                ["caption"] = campaign.ModelMsg
+                ["caption"] = $"{campaign.Name}\n{campaign.ModelMsg}"
             },
             cancellationToken);
 

@@ -23,12 +23,27 @@ var instagramOptions = new InstagramPublishingOptions(
     builder.Configuration["COC_API_INSTAGRAM_ACCESS_TOKEN"],
     builder.Configuration["COC_API_INSTAGRAM_USER_ID"],
     builder.Configuration["COC_API_INSTAGRAM_GRAPH_API_VERSION"]);
+
 builder.Services.AddSingleton(instagramOptions);
 builder.Services.AddHttpClient<InstagramGraphApiClient>(client =>
 {
     client.BaseAddress = new Uri("https://graph.facebook.com/");
 });
 builder.Services.AddHostedService<InstagramPublishingService>();
+
+var linkedInOptions = new LinkedInPublishingOptions(
+    builder.Configuration["LinkedIn:AccessToken"],
+    builder.Configuration["LinkedIn:PersonUrn"],
+    builder.Configuration["LinkedIn:ApiVersion"] ?? "202611");
+builder.Services.AddSingleton(linkedInOptions);
+builder.Services.AddHttpClient<LinkedInApiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://api.linkedin.com/");
+}).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    AllowAutoRedirect = false
+});
+builder.Services.AddHostedService<LinkedInPublishingService>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

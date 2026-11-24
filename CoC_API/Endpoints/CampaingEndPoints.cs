@@ -61,7 +61,8 @@ public static class CampaingEndPoints
                 var status = user.HasCharacteristic(UserCaracteristics.isAprovando)
                     ? CampaignStatus.InReview
                     : publicationStatus;
-                if (request.Type == CampaignType.Instagram && status == CampaignStatus.Sending)
+                if (request.Type is CampaignType.Instagram or CampaignType.LinkedIn
+                    && status == CampaignStatus.Sending)
                     status = CampaignStatus.Scheduled;
 
                 var campaign = new Campaign(
@@ -126,7 +127,8 @@ public static class CampaingEndPoints
                     : campaign.Status;
                 if (status == CampaignStatus.Scheduled)
                     status = Campaign.ResolvePublicationStatus(publicationDate, now);
-                if (type == CampaignType.Instagram && status == CampaignStatus.Sending)
+                if (type is CampaignType.Instagram or CampaignType.LinkedIn
+                    && status == CampaignStatus.Sending)
                     status = CampaignStatus.Scheduled;
 
                 campaign.EditCampaign(
