@@ -1,19 +1,22 @@
+import MultiSelectDropdown from "./components/MultiSelectDropdown";
 import PageHeader from "./components/PageHeader";
 import { useEditCampaignController } from "../controllers/useEditCampaignController";
 import "./EditCampaignView.css";
 
 /**
  * Edit campaign / Campaign details view with URL-based image field,
- * ForChange/Canceled feedback display, and conditional workflow actions.
+ * multi-platform type selector, ForChange/Canceled feedback display, and conditional workflow actions.
  */
 export default function EditCampaignView({ readOnly = false }) {
   const {
     id,
     campaign,
+    isLoading,
+    loadError,
     name,
     setName,
-    type,
-    setType,
+    types,
+    setTypes,
     description,
     setDescription,
     modelMsg,
@@ -28,12 +31,14 @@ export default function EditCampaignView({ readOnly = false }) {
     justificationText,
     isDetailsMode,
     isCanceled,
+    canEditFields,
+    canReview,
     canCancel,
-    isInReview,
     showFeedbackBox,
     errors,
     statusMessage,
     statusRole,
+    isSubmitting,
     handlePublishTimeChange,
     handleSubmit,
     handleCancelCampaign,
@@ -42,6 +47,27 @@ export default function EditCampaignView({ readOnly = false }) {
     goToCampaigns,
     typeOptions,
   } = useEditCampaignController({ readOnly });
+
+  if (isLoading) {
+    return (
+      <main className="app-page edit-campaign-page">
+        <PageHeader title="Campaigns" />
+        <section
+          className="content-card edit-campaign-card"
+          aria-labelledby="edit-campaign-title"
+        >
+          <div className="section-heading">
+            <div>
+              <h1 id="edit-campaign-title">
+                {readOnly ? "Campaign Details" : "Edit Campaign"}
+              </h1>
+              <p>Loading campaign details...</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   if (!campaign) {
     return (
@@ -55,9 +81,10 @@ export default function EditCampaignView({ readOnly = false }) {
             <div>
               <h1 id="edit-campaign-title">Campaign not found</h1>
               <p>
-                {id
-                  ? `The requested campaign (${id}) could not be found.`
-                  : "Select a campaign from the listing to view or edit."}
+                {loadError ||
+                  (id
+                    ? `The requested campaign (${id}) could not be found.`
+                    : "Select a campaign from the listing to view or edit.")}
               </p>
             </div>
             <div className="heading-actions">
@@ -75,9 +102,11 @@ export default function EditCampaignView({ readOnly = false }) {
     );
   }
 
+  const fieldsDisabled = !canEditFields;
+  const showActionsBar = canEditFields || canReview || canCancel;
   const statusClass = `status-pill status-pill--${String(status || "").toLowerCase()}`;
 
-  const subtitleText = isDetailsMode
+  const subtitleText = !canEditFields
     ? isCanceled
       ? "View campaign details, content, schedule, and cancellation feedback."
       : "View campaign details, content, and schedule."
@@ -95,7 +124,7 @@ export default function EditCampaignView({ readOnly = false }) {
           <div>
             <div className="heading-title-row">
               <h1 id="edit-campaign-title">
-                {isDetailsMode ? "Campaign Details" : "Edit Campaign"}
+                {isDetailsMode || !canEditFields ? "Campaign Details" : "Edit Campaign"}
               </h1>
               <span className={statusClass}>{status}</span>
             </div>
@@ -163,32 +192,26 @@ export default function EditCampaignView({ readOnly = false }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className={errors.name ? "invalid" : undefined}
-                disabled={isDetailsMode}
+                disabled={fieldsDisabled}
                 required
               />
-              {!isDetailsMode && (
+              {!fieldsDisabled && (
                 <span className="error-message">{errors.name}</span>
               )}
             </div>
 
             <div className="form-field">
               <label htmlFor="campaign-type">Type</label>
-              <select
+              <MultiSelectDropdown
                 id="campaign-type"
-                name="type"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className={errors.type ? "invalid" : undefined}
-                disabled={isDetailsMode}
-                required
-              >
-                {typeOptions.map((tp) => (
-                  <option key={tp} value={tp}>
-                    {tp}
-                  </option>
-                ))}
-              </select>
-              {!isDetailsMode && (
+                options={typeOptions}
+                selected={types}
+                onChange={setTypes}
+                placeholder="Select one or more types"
+                invalid={Boolean(errors.type)}
+                disabled={fieldsDisabled}
+              />
+              {!fieldsDisabled && (
                 <span className="error-message">{errors.type}</span>
               )}
             </div>
@@ -203,16 +226,16 @@ export default function EditCampaignView({ readOnly = false }) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className={errors.description ? "invalid" : undefined}
-                disabled={isDetailsMode}
+                disabled={fieldsDisabled}
                 required
               />
-              {!isDetailsMode && (
+              {!fieldsDisabled && (
                 <span className="error-message">{errors.description}</span>
               )}
             </div>
 
             <div className="form-field form-field--full">
-              <label htmlFor="campaign-modelmsg">Model Message</label>
+              <label htmlFor="campaign-modelmsg">Message to send</label>
               <textarea
                 id="campaign-modelmsg"
                 name="modelMsg"
@@ -221,10 +244,10 @@ export default function EditCampaignView({ readOnly = false }) {
                 value={modelMsg}
                 onChange={(e) => setModelMsg(e.target.value)}
                 className={errors.modelMsg ? "invalid" : undefined}
-                disabled={isDetailsMode}
+                disabled={fieldsDisabled}
                 required
               />
-              {!isDetailsMode && (
+              {!fieldsDisabled && (
                 <span className="error-message">{errors.modelMsg}</span>
               )}
             </div>
@@ -235,13 +258,13 @@ export default function EditCampaignView({ readOnly = false }) {
                 type="url"
                 id="campaign-image-url"
                 name="imageUrl"
-                placeholder={isDetailsMode ? "—" : "https://example.com/campaign-image.jpg"}
+                placeholder={fieldsDisabled ? "—" : "https://example.com/campaign-image.jpg"}
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 className={errors.imageUrl ? "invalid" : undefined}
-                disabled={isDetailsMode}
+                disabled={fieldsDisabled}
               />
-              {!isDetailsMode && (
+              {!fieldsDisabled && (
                 <>
                   <span className="field-hint">
                     Optional. Provide the public URL of the campaign image.
@@ -260,10 +283,10 @@ export default function EditCampaignView({ readOnly = false }) {
                 value={publishDate}
                 onChange={(e) => setPublishDate(e.target.value)}
                 className={errors.publishDate ? "invalid" : undefined}
-                disabled={isDetailsMode}
+                disabled={fieldsDisabled}
                 required
               />
-              {!isDetailsMode && (
+              {!fieldsDisabled && (
                 <span className="error-message">{errors.publishDate}</span>
               )}
             </div>
@@ -282,10 +305,10 @@ export default function EditCampaignView({ readOnly = false }) {
                 value={publishTime}
                 onChange={(e) => handlePublishTimeChange(e.target.value)}
                 className={errors.publishTime ? "invalid" : undefined}
-                disabled={isDetailsMode}
+                disabled={fieldsDisabled}
                 required
               />
-              {!isDetailsMode && (
+              {!fieldsDisabled && (
                 <>
                   <span className="field-hint" id="publish-time-hint">
                     Formato de 24 horas, por exemplo 14:30.
@@ -296,15 +319,16 @@ export default function EditCampaignView({ readOnly = false }) {
             </div>
           </div>
 
-          {!isDetailsMode && (
+          {showActionsBar && (
             <div className="form-actions">
               <div className="workflow-actions">
-                {isInReview && (
+                {canReview && (
                   <>
                     <button
                       className="workflow-button approve-button"
                       type="button"
                       id="approve-campaign"
+                      disabled={isSubmitting}
                       onClick={handleApproveCampaign}
                     >
                       Approve
@@ -313,6 +337,7 @@ export default function EditCampaignView({ readOnly = false }) {
                       className="workflow-button send-change-button"
                       type="button"
                       id="send-for-change"
+                      disabled={isSubmitting}
                       onClick={handleSendForChange}
                     >
                       Send for change
@@ -325,6 +350,7 @@ export default function EditCampaignView({ readOnly = false }) {
                     className="workflow-button cancel-campaign-button"
                     type="button"
                     id="cancel-campaign"
+                    disabled={isSubmitting}
                     onClick={handleCancelCampaign}
                   >
                     Cancel Campaign
@@ -336,13 +362,16 @@ export default function EditCampaignView({ readOnly = false }) {
                 <p id="form-status" role={statusRole} aria-live="polite">
                   {statusMessage}
                 </p>
-                <button
-                  className="primary-button"
-                  type="submit"
-                  id="submit-campaign"
-                >
-                  <span>Save Campaign</span>
-                </button>
+                {canEditFields && (
+                  <button
+                    className="primary-button"
+                    type="submit"
+                    id="submit-campaign"
+                    disabled={isSubmitting}
+                  >
+                    <span>{isSubmitting ? "Saving..." : "Save Campaign"}</span>
+                  </button>
+                )}
               </div>
             </div>
           )}

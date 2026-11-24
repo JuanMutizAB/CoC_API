@@ -23,8 +23,22 @@ export function useAccountCreationController() {
   const [password, setPassword] = useState("");
 
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isAprovando, setIsAprovando] = useState(false);
-  const [isAprovador, setIsAprovador] = useState(false);
+  const [isAprovando, setIsAprovandoState] = useState(false);
+  const [isAprovador, setIsAprovadorState] = useState(false);
+
+  const setIsAprovando = (checked) => {
+    setIsAprovandoState(checked);
+    if (checked) {
+      setIsAprovadorState(false);
+    }
+  };
+
+  const setIsAprovador = (checked) => {
+    setIsAprovadorState(checked);
+    if (checked) {
+      setIsAprovandoState(false);
+    }
+  };
 
   const [errors, setErrors] = useState({
     name: "",
@@ -35,6 +49,7 @@ export function useAccountCreationController() {
   });
   const [actionMessage, setActionMessage] = useState("");
   const [actionType, setActionType] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     document.title = "Create Account - CoC";
@@ -52,8 +67,11 @@ export function useAccountCreationController() {
     setActionType("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
 
     const nextErrors = {
       name: validateName(name),
@@ -71,25 +89,43 @@ export function useAccountCreationController() {
       return;
     }
 
+    setErrors({
+      name: "",
+      email: "",
+      birthDate: "",
+      taxId: "",
+      password: "",
+    });
+    setActionMessage("");
+    setActionType("");
+
     const caracteristics = ["isActive"];
     if (isAdmin) caracteristics.push("Admin");
     if (isAprovando) caracteristics.push("isAprovando");
-    if (isAprovador) caracteristics.push("isAprovador");
+    else if (isAprovador) caracteristics.push("isAprovador");
 
     const trimmedName = name.trim();
-    const created = createAccount({
-      name: trimmedName,
-      email: email.trim(),
-      birthDate,
-      taxId: taxId.trim(),
-      password,
-      caracteristics,
-    });
+    setIsSubmitting(true);
+    try {
+      const created = await createAccount({
+        name: trimmedName,
+        email: email.trim(),
+        birthDate,
+        taxId: taxId.trim(),
+        password,
+        caracteristics,
+      });
 
-    setFlashMessage(
-      `Account for ${trimmedName} (ID ${created.id}) was created successfully.`
-    );
-    navigate("/accounts");
+      setFlashMessage(
+        `Account for ${trimmedName} (ID ${created.id}) was created successfully.`
+      );
+      navigate("/accounts");
+    } catch (error) {
+      setActionMessage(error?.message || "Could not create account.");
+      setActionType("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClear = () => {
@@ -128,6 +164,7 @@ export function useAccountCreationController() {
     errors,
     actionMessage,
     actionType,
+    isSubmitting,
     handleSubmit,
     handleClear,
     goBackToAccounts,

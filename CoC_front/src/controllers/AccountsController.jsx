@@ -1,112 +1,135 @@
-import { createContext, useCallback, useContext, useState } from "react";
 import {
-  hasRole,
-  loadStoredAccounts,
-  normalizeCharacteristics,
-  saveStoredAccounts,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import {
+  createAccountApi,
+  deactivateAccountApi,
+  fetchAccountById,
+  fetchAccounts,
+  updateAccountApi,
 } from "../models/accountModel";
+import { useAuth } from "./AuthController";
 
 const AccountsContext = createContext(null);
 
 /**
- * Provides account state management and demo persistence across MVC controllers.
+ * Provides account state management backed by CoC_API across MVC controllers.
  */
 export function AccountsProvider({ children }) {
-  const [accounts, setAccounts] = useState(() => loadStoredAccounts());
+  const { currentUser, isAuthenticated, isAdmin, refreshSession } = useAuth();
+  const [accounts, setAccounts] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [flashMessage, setFlashMessage] = useState("");
 
   const clearFlashMessage = useCallback(() => {
     setFlashMessage("");
   }, []);
 
+  const refreshAccounts = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError("");
+    try {
+      const list = await fetchAccounts();
+      setAccounts(list);
+      return list;
+    } catch (error) {
+      setLoadError(error?.message || "Could not load accounts.");
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated && isAdmin) {
+      refreshAccounts();
+    } else {
+      setAccounts([]);
+      setLoadError("");
+    }
+  }, [isAuthenticated, isAdmin, refreshAccounts]);
+
   const getAccountById = useCallback(
     (id) => accounts.find((acc) => String(acc.id) === String(id)) || null,
     [accounts]
   );
 
+  const fetchAccount = useCallback(async (id) => {
+    const account = await fetchAccountById(id);
+    if (account) {
+      setAccounts((prev) => {
+        const exists = prev.some((item) => String(item.id) === String(account.id));
+        return exists
+          ? prev.map((item) =>
+              String(item.id) === String(account.id) ? account : item
+            )
+          : [...prev, account];
+      });
+    }
+    return account;
+  }, []);
+
   const createAccount = useCallback(
-    ({ name, email, birthDate, taxId, password, caracteristics }) => {
-      const nextId =
-        accounts.length > 0
-          ? Math.max(...accounts.map((a) => Number(a.id) || 0)) + 1
-          : 1;
-
-      const normalized = normalizeCharacteristics(caracteristics);
-      if (!hasRole(normalized, "isActive")) {
-        normalized.unshift("isActive");
-      }
-
-      const newAccount = {
-        id: nextId,
+    async ({ name, email, birthDate, taxId, password, caracteristics }) => {
+      const created = await createAccountApi({
         name,
         email,
         birthDate,
         taxId,
         password,
-        active: true,
-        caracteristics: normalized,
-      };
-
-      const nextList = [...accounts, newAccount];
-      setAccounts(nextList);
-      saveStoredAccounts(nextList);
-      return newAccount;
+        caracteristics,
+      });
+      setAccounts((prev) => [...prev, created]);
+      return created;
     },
-    [accounts]
+    []
   );
 
   const updateAccount = useCallback(
-    (id, { name, email, password, caracteristics }) => {
-      const nextList = accounts.map((acc) => {
-        if (String(acc.id) !== String(id)) {
-          return acc;
-        }
-
-        const updatedChars = normalizeCharacteristics(caracteristics);
-        const hadIsActive = hasRole(acc.caracteristics, "isActive");
-        if ((hadIsActive || acc.active) && !hasRole(updatedChars, "isActive")) {
-          updatedChars.push("isActive");
-        }
-
-        const updated = {
-          ...acc,
-          name,
-          email,
-          caracteristics: updatedChars,
-        };
-
-        if (password) {
-          updated.password = password;
-        }
-
-        return updated;
+    async (id, { name, email, password, caracteristics }) => {
+      await updateAccountApi(id, {
+        name,
+        email,
+        password: password || null,
+        caracteristics,
       });
-
-      setAccounts(nextList);
-      saveStoredAccounts(nextList);
+      if (currentUser && String(id) === String(currentUser.id)) {
+        await refreshSession();
+      }
+      await refreshAccounts();
     },
-    [accounts]
+    [currentUser, refreshAccounts, refreshSession]
   );
 
   const deactivateAccount = useCallback(
-    (id) => {
-      const nextList = accounts.map((acc) =>
-        String(acc.id) === String(id) ? { ...acc, active: false } : acc
-      );
-      setAccounts(nextList);
-      saveStoredAccounts(nextList);
+    async (id) => {
+      await deactivateAccountApi(id);
+      if (currentUser && String(id) === String(currentUser.id)) {
+        await refreshSession();
+        return;
+      }
+      await refreshAccounts();
     },
-    [accounts]
+    [currentUser, refreshAccounts, refreshSession]
   );
 
   return (
     <AccountsContext.Provider
       value={{
         accounts,
+        isLoading,
+        loadError,
         flashMessage,
         setFlashMessage,
         clearFlashMessage,
         getAccountById,
+        fetchAccount,
+        refreshAccounts,
         createAccount,
         updateAccount,
         deactivateAccount,

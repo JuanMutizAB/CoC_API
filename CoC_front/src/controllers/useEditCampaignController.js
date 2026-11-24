@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  approveCampaignApi,
   CampaignStatus,
   CampaignType,
   combineDateAndTime,
+  editCampaignApi,
   extractDateAndTime,
+  fetchCampaignById,
   formatPublishTimeInput,
-  getCampaignById,
   isValidPublishTime,
-  loadStoredCampaign,
-  setCampaignFlashMessage,
-  updateCampaignInStore,
+  normalizeCampaignTypes,
 } from "../models/campaignModel";
 import { validateImageUrl } from "../models/validationModel";
+import { useAuth } from "./AuthController";
 
 const INITIAL_ERRORS = {
   name: "",
@@ -26,20 +27,17 @@ const INITIAL_ERRORS = {
 
 /**
  * Controller hook for the Edit Campaign and Campaign Details views.
- * Manages field editing (with imageUrl), ForChange -> InReview transition,
- * workflow actions (Cancel -> feedback, Approve, Send for change), and read-only details mode.
  */
 export function useEditCampaignController({ readOnly = false } = {}) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentUser, isAdmin, isAprovador, isAprovando } = useAuth();
 
-  const resolvedCampaign = id
-    ? getCampaignById(id)
-    : getCampaignById(loadStoredCampaign()?.id);
-
-  const [campaign, setCampaign] = useState(resolvedCampaign);
+  const [campaign, setCampaign] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [name, setName] = useState("");
-  const [type, setType] = useState(CampaignType.Email);
+  const [types, setTypes] = useState([]);
   const [description, setDescription] = useState("");
   const [modelMsg, setModelMsg] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -51,41 +49,79 @@ export function useEditCampaignController({ readOnly = false } = {}) {
   const [errors, setErrors] = useState(INITIAL_ERRORS);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusRole, setStatusRole] = useState("status");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const fresh = id
-      ? getCampaignById(id)
-      : getCampaignById(loadStoredCampaign()?.id);
-    setCampaign(fresh);
-
-    if (!fresh) {
+    if (!id) {
+      setCampaign(null);
+      setIsLoading(false);
       return;
     }
 
-    const { publishDate: initDate, publishTime: initTime } =
-      extractDateAndTime(fresh.publicationDate);
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError("");
 
-    setName(fresh.name || "");
-    setType(fresh.type || CampaignType.Email);
-    setDescription(fresh.description || "");
-    setModelMsg(fresh.modelMsg || "");
-    setImageUrl(fresh.imageUrl || "");
-    setPublishDate(initDate);
-    setPublishTime(initTime);
-    setStatus(fresh.status || CampaignStatus.New);
-    setMotivo(fresh.motivo || "");
-    setJustificationText(fresh.justificationText || "");
-    setErrors(INITIAL_ERRORS);
-    setStatusMessage("");
-    setStatusRole("status");
+    fetchCampaignById(id)
+      .then((fresh) => {
+        if (cancelled) return;
+        setCampaign(fresh);
+
+        if (!fresh) return;
+
+        const { publishDate: initDate, publishTime: initTime } =
+          extractDateAndTime(fresh.publicationDate);
+
+        setName(fresh.name || "");
+        setTypes(normalizeCampaignTypes(fresh.types ?? fresh.type));
+        setDescription(fresh.description || "");
+        setModelMsg(fresh.modelMsg || "");
+        setImageUrl(fresh.imageUrl || "");
+        setPublishDate(initDate);
+        setPublishTime(initTime);
+        setStatus(fresh.status || CampaignStatus.New);
+        setMotivo(fresh.motivo || "");
+        setJustificationText(fresh.justificationText || "");
+        setErrors(INITIAL_ERRORS);
+        setStatusMessage("");
+        setStatusRole("status");
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCampaign(null);
+          setLoadError(error?.message || "Could not load campaign.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const isCanceled = status === CampaignStatus.Canceled;
   const isClosed = status === CampaignStatus.Closed;
-  const isDetailsMode = Boolean(readOnly) || isCanceled || isClosed;
-  const canCancel = !isDetailsMode && !isClosed && !isCanceled;
-  const isInReview = !isDetailsMode && status === CampaignStatus.InReview;
   const isForChange = status === CampaignStatus.ForChange;
+  const isInReview = status === CampaignStatus.InReview;
+  const isDetailsMode = Boolean(readOnly) || isCanceled || isClosed;
+  const isOwner = Boolean(
+    currentUser && campaign && Number(campaign.userId) === Number(currentUser.id)
+  );
+  const canEditFields =
+    !isDetailsMode &&
+    (((isForChange || isInReview) && (isAdmin || isAprovador)) ||
+      ((isOwner || isAdmin) && !(isForChange && !isAprovando)));
+  const canReview =
+    !isDetailsMode && isInReview && isAprovador;
+  const canCancel =
+    !isDetailsMode &&
+    status !== CampaignStatus.Sending &&
+    (isOwner || isAdmin) &&
+    (!isForChange || isAdmin);
   const showFeedbackBox = isForChange || isCanceled;
 
   useEffect(() => {
@@ -96,9 +132,9 @@ export function useEditCampaignController({ readOnly = false } = {}) {
     setPublishTime(formatPublishTimeInput(value));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!campaign || isDetailsMode) {
+    if (!campaign || !canEditFields || isSubmitting) {
       return;
     }
 
@@ -106,8 +142,8 @@ export function useEditCampaignController({ readOnly = false } = {}) {
     if (!name.trim()) {
       nextErrors.name = "Campaign name is required.";
     }
-    if (!type) {
-      nextErrors.type = "Campaign type is required.";
+    if (!types || types.length === 0) {
+      nextErrors.type = "Select at least one campaign type.";
     }
     if (!description.trim()) {
       nextErrors.description = "Description is required.";
@@ -131,49 +167,79 @@ export function useEditCampaignController({ readOnly = false } = {}) {
       return;
     }
 
-    // TODO: once backend auth/sessions are connected, skip InReview transition when saved by an Admin
-    const wasForChange = status === CampaignStatus.ForChange;
-    const nextStatus = wasForChange ? CampaignStatus.InReview : status;
+    setErrors(INITIAL_ERRORS);
+    setStatusMessage("");
+    setStatusRole("status");
 
     const updatedName = name.trim();
-    updateCampaignInStore(campaign.id, {
-      name: updatedName,
-      description: description.trim(),
-      modelMsg: modelMsg.trim(),
-      type,
-      imageUrl: imageUrl.trim() || null,
-      publicationDate: combineDateAndTime(publishDate, publishTime),
-      status: nextStatus,
-      ...(wasForChange ? { motivo: null, justificationText: "" } : {}),
-    });
+    setIsSubmitting(true);
+    try {
+      const updated = await editCampaignApi(campaign.id, {
+        name: updatedName,
+        description: description.trim(),
+        modelMsg: modelMsg.trim(),
+        types,
+        imageUrl: imageUrl.trim(),
+        publicationDate: combineDateAndTime(publishDate, publishTime),
+      });
 
-    setCampaignFlashMessage(
-      wasForChange
-        ? `Campaign "${updatedName}" updated and sent back to InReview.`
-        : `Campaign "${updatedName}" updated successfully.`
-    );
-    navigate("/campaigns");
+      let flashMessage = `Campaign "${updatedName}" updated successfully.`;
+      if (isForChange && updated?.status === CampaignStatus.InReview) {
+        flashMessage = `Campaign "${updatedName}" updated and sent back to InReview.`;
+      } else if (
+        (isForChange || isInReview) &&
+        (updated?.status === CampaignStatus.Scheduled ||
+          updated?.status === CampaignStatus.Sending)
+      ) {
+        flashMessage = `Campaign "${updatedName}" updated and moved to ${updated.status}.`;
+      }
+
+      navigate("/campaigns", {
+        state: {
+          flashMessage,
+        },
+      });
+    } catch (error) {
+      setStatusRole("alert");
+      setStatusMessage(error?.message || "Could not update campaign.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancelCampaign = () => {
     if (!campaign || !canCancel) {
       return;
     }
-    // TODO: once backend auth/sessions are connected, restrict canceling ForChange campaigns to Admins
     navigate(`/campaigns/${campaign.id}/feedback?mode=cancel`);
   };
 
-  const handleApproveCampaign = () => {
-    if (!campaign || !isInReview) {
+  const handleApproveCampaign = async () => {
+    if (!campaign || !canReview || isSubmitting) {
       return;
     }
-    updateCampaignInStore(campaign.id, { status: CampaignStatus.Approved });
-    setCampaignFlashMessage(`Campaign "${campaign.name}" was approved.`);
-    navigate("/campaigns");
+
+    setIsSubmitting(true);
+    setStatusMessage("");
+    setStatusRole("status");
+
+    try {
+      await approveCampaignApi(campaign.id);
+      navigate("/campaigns", {
+        state: {
+          flashMessage: `Campaign "${campaign.name}" was approved.`,
+        },
+      });
+    } catch (error) {
+      setStatusRole("alert");
+      setStatusMessage(error?.message || "Could not approve campaign.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSendForChange = () => {
-    if (!campaign || !isInReview) {
+    if (!campaign || !canReview) {
       return;
     }
     navigate(`/campaigns/${campaign.id}/feedback?mode=change`);
@@ -184,10 +250,12 @@ export function useEditCampaignController({ readOnly = false } = {}) {
   return {
     id,
     campaign,
+    isLoading,
+    loadError,
     name,
     setName,
-    type,
-    setType,
+    types,
+    setTypes,
     description,
     setDescription,
     modelMsg,
@@ -202,13 +270,15 @@ export function useEditCampaignController({ readOnly = false } = {}) {
     justificationText,
     isDetailsMode,
     isCanceled,
+    canEditFields,
+    canReview,
     canCancel,
-    isInReview,
     isForChange,
     showFeedbackBox,
     errors,
     statusMessage,
     statusRole,
+    isSubmitting,
     handlePublishTimeChange,
     handleSubmit,
     handleCancelCampaign,

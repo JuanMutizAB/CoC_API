@@ -14,17 +14,39 @@ import { useAccounts } from "./AccountsController";
 export function useEditUserController() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getAccountById, updateAccount, setFlashMessage } = useAccounts();
+  const {
+    getAccountById,
+    fetchAccount,
+    updateAccount,
+    setFlashMessage,
+  } = useAccounts();
 
   const user = getAccountById(id);
 
+  const [isLoading, setIsLoading] = useState(!user);
+  const [loadError, setLoadError] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isAprovando, setIsAprovando] = useState(false);
-  const [isAprovador, setIsAprovador] = useState(false);
+  const [isAprovando, setIsAprovandoState] = useState(false);
+  const [isAprovador, setIsAprovadorState] = useState(false);
   const [isOriginalAdmin, setIsOriginalAdmin] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const setIsAprovando = (checked) => {
+    setIsAprovandoState(checked);
+    if (checked) {
+      setIsAprovadorState(false);
+    }
+  };
+
+  const setIsAprovador = (checked) => {
+    setIsAprovadorState(checked);
+    if (checked) {
+      setIsAprovandoState(false);
+    }
+  };
 
   const [errors, setErrors] = useState({
     name: "",
@@ -39,26 +61,60 @@ export function useEditUserController() {
   }, []);
 
   useEffect(() => {
+    if (!id) {
+      setIsLoading(false);
+      return;
+    }
+    if (getAccountById(id)) {
+      setIsLoading(false);
+      setLoadError("");
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError("");
+    fetchAccount(id)
+      .catch((error) => {
+        if (!cancelled) {
+          setLoadError(error?.message || "Could not load account.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, getAccountById, fetchAccount]);
+
+  useEffect(() => {
     if (!user) {
       return;
     }
 
     const adminFlag = hasRole(user.caracteristics, "admin");
+    const aprovadorFlag = hasRole(user.caracteristics, "aprovador");
+    const aprovandoFlag =
+      !aprovadorFlag && hasRole(user.caracteristics, "aprovando");
     setName(user.name || "");
     setEmail(user.email || "");
     setPassword("");
     setIsOriginalAdmin(adminFlag);
     setIsAdmin(adminFlag);
-    setIsAprovando(hasRole(user.caracteristics, "aprovando"));
-    setIsAprovador(hasRole(user.caracteristics, "aprovador"));
+    setIsAprovandoState(aprovandoFlag);
+    setIsAprovadorState(aprovadorFlag);
     setErrors({ name: "", email: "", password: "" });
     setActionMessage("");
     setActionType("");
   }, [user]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!user) {
+    if (!user || isSubmitting) {
       return;
     }
 
@@ -76,23 +132,35 @@ export function useEditUserController() {
       return;
     }
 
+    setErrors({ name: "", email: "", password: "" });
+    setActionMessage("");
+    setActionType("");
+
     const updatedChars = [];
     if (isOriginalAdmin || isAdmin) updatedChars.push("Admin");
     if (isAprovando) updatedChars.push("isAprovando");
-    if (isAprovador) updatedChars.push("isAprovador");
+    else if (isAprovador) updatedChars.push("isAprovador");
 
     const updatedName = name.trim();
-    updateAccount(user.id, {
-      name: updatedName,
-      email: email.trim(),
-      password,
-      caracteristics: updatedChars,
-    });
+    setIsSubmitting(true);
+    try {
+      await updateAccount(user.id, {
+        name: updatedName,
+        email: email.trim(),
+        password: password || null,
+        caracteristics: updatedChars,
+      });
 
-    setFlashMessage(
-      `User ${updatedName} updated successfully.${password ? " Password was changed." : ""}`
-    );
-    navigate("/accounts");
+      setFlashMessage(
+        `User ${updatedName} updated successfully.${password ? " Password was changed." : ""}`
+      );
+      navigate("/accounts");
+    } catch (error) {
+      setActionMessage(error?.message || "Could not update user.");
+      setActionType("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const goBackToAccounts = () => navigate("/accounts");
@@ -100,6 +168,8 @@ export function useEditUserController() {
   return {
     id,
     user,
+    isLoading,
+    loadError,
     name,
     setName,
     email,
@@ -116,6 +186,7 @@ export function useEditUserController() {
     errors,
     actionMessage,
     actionType,
+    isSubmitting,
     handleSubmit,
     goBackToAccounts,
   };

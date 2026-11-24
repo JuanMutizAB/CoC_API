@@ -1,4 +1,4 @@
-﻿
+
 namespace CoC_API.DTOs.Request;
 
 using CoC_API.Models;
@@ -13,7 +13,7 @@ public record EditCampaignRequest
        string? Name = null,
        string? Description = null,
        string? ModelMsg = null,
-       CampaignType? Type = null,
+       List<CampaignType>? Types = null,
        DateTimeOffset? PublicationDate = null,
        string? ImageUrl = null
 );

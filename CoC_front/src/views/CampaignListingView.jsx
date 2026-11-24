@@ -1,6 +1,10 @@
 import PageHeader from "./components/PageHeader";
 import { useCampaignListingController } from "../controllers/useCampaignListingController";
-import { formatCampaignDate } from "../models/campaignModel";
+import {
+  formatCampaignDate,
+  formatCampaignDateTime,
+  normalizeCampaignTypes,
+} from "../models/campaignModel";
 import "./CampaignListingView.css";
 
 /**
@@ -10,6 +14,9 @@ import "./CampaignListingView.css";
 export default function CampaignListingView() {
   const {
     visibleCampaigns,
+    isAdmin,
+    isLoading,
+    loadError,
     statusMessage,
     nameFilter,
     setNameFilter,
@@ -44,20 +51,22 @@ export default function CampaignListingView() {
           <div>
             <h1 id="campaigns-title">Campaigns list</h1>
           </div>
-          <div className="heading-actions">
-            <button
-              className="back-button"
-              type="button"
-              onClick={goToAccounts}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-              <span>Accounts</span>
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="heading-actions">
+              <button
+                className="back-button"
+                type="button"
+                onClick={goToAccounts}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <span>Accounts</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filter Section */}
@@ -215,6 +224,23 @@ export default function CampaignListingView() {
                 </th>
                 <th
                   scope="col"
+                  aria-sort={
+                    sortField === "publicationDate" ? sortDirection : "none"
+                  }
+                >
+                  <button
+                    className="sort-button"
+                    type="button"
+                    onClick={() => handleSort("publicationDate")}
+                  >
+                    Publication Date{" "}
+                    <span className="sort-indicator" aria-hidden="true">
+                      {getSortIndicator("publicationDate")}
+                    </span>
+                  </button>
+                </th>
+                <th
+                  scope="col"
                   aria-sort={sortField === "status" ? sortDirection : "none"}
                 >
                   <button
@@ -246,9 +272,21 @@ export default function CampaignListingView() {
               </tr>
             </thead>
             <tbody>
-              {visibleCampaigns.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td className="empty-state" colSpan={5}>
+                  <td className="empty-state" colSpan={6}>
+                    Loading campaigns...
+                  </td>
+                </tr>
+              ) : loadError ? (
+                <tr>
+                  <td className="empty-state" colSpan={6}>
+                    {loadError}
+                  </td>
+                </tr>
+              ) : visibleCampaigns.length === 0 ? (
+                <tr>
+                  <td className="empty-state" colSpan={6}>
                     No campaigns match your search.
                   </td>
                 </tr>
@@ -278,13 +316,22 @@ export default function CampaignListingView() {
                       <td className="campaign-date-cell">
                         {formatCampaignDate(camp.createdAt)}
                       </td>
+                      <td className="campaign-date-cell">
+                        {formatCampaignDateTime(camp.publicationDate)}
+                      </td>
                       <td className="campaign-status-cell">
                         <span className={statusClass}>
                           {camp.status}
                         </span>
                       </td>
                       <td className="campaign-type-cell">
-                        <span className="type-badge">{camp.type}</span>
+                        <div className="type-badges">
+                          {normalizeCampaignTypes(camp.types ?? camp.type).map((t) => (
+                            <span key={t} className="type-badge">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
                       </td>
                     </tr>
                   );

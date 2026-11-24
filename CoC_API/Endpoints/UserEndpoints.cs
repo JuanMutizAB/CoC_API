@@ -46,6 +46,24 @@ public static class UserEndpoints
             }
         }).RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
 
+        app.MapPut("/users/{id:int}/deactivate", async (int id, CoC_DbContext db) =>
+        {
+            var user = await db.Users.FindAsync(id);
+            if (user is null)
+                return Results.NotFound();
+
+            try
+            {
+                user.DeactivateUser();
+                await db.SaveChangesAsync();
+                return Results.NoContent();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { erro = ex.Message });
+            }
+        }).RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
+
         app.MapPost("/users", async (CreateUserRequest request, CoC_DbContext db) =>
         {
             try

@@ -1,3 +1,5 @@
 namespace CoC_API.DTOs.Request;
 
-public record RequestCampaignChangesRequest(string JustificationText);
+using CoC_API.Models;
+
+public record RequestCampaignChangesRequest(string JustificationText, Motivo? Motivo = null);

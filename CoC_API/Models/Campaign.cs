@@ -9,7 +9,7 @@ namespace CoC_API.Models
         private string modelMsg = string.Empty;
         public string? justificationText { get; private set; }
         public Motivo? motivo { get; private set; }
-        private CampaignType type;
+        private List<CampaignType> types = new();
         private CampaignStatus status;
         private DateTimeOffset createdAt;
         private DateTimeOffset publicationDate;
@@ -56,15 +56,17 @@ namespace CoC_API.Models
         }
 
         [Column("Model")]
-        public CampaignType Type
+        public List<CampaignType> Types
         {
-            get => type;
+            get => types;
             private set
             {
-                if (!Enum.IsDefined(typeof(CampaignType), value))
-                    throw new ArgumentOutOfRangeException(nameof(Type), "Campaign type is invalid.");
+                if (value is null || value.Count == 0)
+                    throw new ArgumentException("At least one campaign type is required.", nameof(Types));
+                if (value.Any(campaignType => !Enum.IsDefined(typeof(CampaignType), campaignType)))
+                    throw new ArgumentOutOfRangeException(nameof(Types), "Campaign type is invalid.");
 
-                type = value;
+                types = value.Distinct().ToList();
             }
         }
 
@@ -126,9 +128,10 @@ namespace CoC_API.Models
             name = description = modelMsg = string.Empty;
             justificationText = string.Empty;
             motivo = Motivo.None;
+            types = new List<CampaignType>();
         }
 
-        public Campaign(string name, string description, string modelMsg, CampaignType type,
+        public Campaign(string name, string description, string modelMsg, IEnumerable<CampaignType> types,
             CampaignStatus status, DateTimeOffset publicationDate, string? imageUrl, int userId,
             DateTimeOffset validationTime)
         {
@@ -136,7 +139,7 @@ namespace CoC_API.Models
             Name = name;
             Description = description;
             ModelMsg = modelMsg;
-            Type = type;
+            Types = types?.ToList() ?? throw new ArgumentException("At least one campaign type is required.", nameof(types));
             Status = status;
             CreatedAt = DateTimeOffset.UtcNow;
             PublicationDate = publicationDate;
@@ -146,14 +149,15 @@ namespace CoC_API.Models
             motivo = Motivo.None;
         }
 
-        public void EditCampaign(string name, string description, string modelMsg, CampaignType type,
+        public void EditCampaign(string name, string description, string modelMsg, IEnumerable<CampaignType> types,
             CampaignStatus status, DateTimeOffset publicationDate, string? imageUrl, DateTimeOffset validationTime)
         {
+            var wasForChange = Status == CampaignStatus.ForChange;
             var editedCampaign = new Campaign(
                 name,
                 description,
                 modelMsg,
-                type,
+                types,
                 status,
                 publicationDate,
                 imageUrl,
@@ -163,10 +167,15 @@ namespace CoC_API.Models
             Name = editedCampaign.Name;
             Description = editedCampaign.Description;
             ModelMsg = editedCampaign.ModelMsg;
-            Type = editedCampaign.Type;
+            Types = editedCampaign.Types;
             Status = editedCampaign.Status;
             PublicationDate = editedCampaign.PublicationDate;
             ImageUrl = editedCampaign.ImageUrl;
+            if (wasForChange && Status != CampaignStatus.ForChange)
+            {
+                motivo = Motivo.None;
+                justificationText = string.Empty;
+            }
         }
 
         public void Approve()
@@ -175,17 +184,20 @@ namespace CoC_API.Models
                 throw new InvalidOperationException("Only campaigns in review can be approved.");
 
             var publicationStatus = ResolvePublicationStatus(PublicationDate, DateTimeOffset.UtcNow);
-            Status = Type is CampaignType.Instagram or CampaignType.LinkedIn
+            Status = Types.Contains(CampaignType.Instagram) || Types.Contains(CampaignType.LinkedIn)
                 ? CampaignStatus.Approved
                 : publicationStatus;
         }
 
-        public void RequestChanges(string justificationText)
+        public void RequestChanges(string justificationText, Motivo? motivo = null)
         {
             if (Status != CampaignStatus.InReview)
                 throw new InvalidOperationException("Only campaigns in review can be sent for changes.");
+            if (motivo.HasValue && !Enum.IsDefined(motivo.Value))
+                throw new ArgumentOutOfRangeException(nameof(motivo), "Campaign reason is invalid.");
 
             this.justificationText = ValidateJustification(justificationText);
+            this.motivo = motivo ?? Motivo.None;
             Status = CampaignStatus.ForChange;
         }
 
@@ -244,7 +256,9 @@ namespace CoC_API.Models
                 throw new ArgumentException("Instagram media ID cannot be empty.", nameof(mediaId));
 
             InstagramMediaId = mediaId;
-            Status = CampaignStatus.Closed;
+            Status = AreAllPublishingChannelsCompleted()
+                ? CampaignStatus.Closed
+                : CampaignStatus.Scheduled;
         }
 
         public void FailInstagramPublication()
@@ -261,7 +275,19 @@ namespace CoC_API.Models
                 throw new ArgumentException("LinkedIn post ID cannot be empty.", nameof(postId));
 
             LinkedInPostId = postId;
-            Status = CampaignStatus.Closed;
+            Status = AreAllPublishingChannelsCompleted()
+                ? CampaignStatus.Closed
+                : CampaignStatus.Scheduled;
+        }
+
+        private bool AreAllPublishingChannelsCompleted()
+        {
+            var instagramPending = Types.Contains(CampaignType.Instagram)
+                && string.IsNullOrWhiteSpace(InstagramMediaId);
+            var linkedInPending = Types.Contains(CampaignType.LinkedIn)
+                && string.IsNullOrWhiteSpace(LinkedInPostId);
+
+            return !instagramPending && !linkedInPending;
         }
 
         public void FailLinkedInPublication()

@@ -52,7 +52,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
                 name = "Revised campaign",
                 description = "Updated after review",
                 modelMsg = "Updated message",
-                type = CampaignType.Email,
+                types = new[] { CampaignType.Email },
                 publicationDate = DateTimeOffset.UtcNow.AddMinutes(20),
                 imageUrl = (string?)null
             });
@@ -151,7 +151,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             "Instagram campaign",
             "Test only",
             "A test caption",
-            CampaignType.Instagram,
+            new[] { CampaignType.Instagram },
             CampaignStatus.Scheduled,
             DateTimeOffset.UtcNow.AddMinutes(5),
             "https://images.example.test/campaign.jpg",
@@ -164,7 +164,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         Assert.Equal(3, handler.Requests.Count);
         Assert.Equal(HttpMethod.Post, handler.Requests[0].Method);
         Assert.Contains("account-789/media", handler.Requests[0].Uri);
-        Assert.Contains("caption=A+test+caption", handler.Requests[0].Body);
+        Assert.Contains("caption=Instagram+campaign%0AA+test+caption", handler.Requests[0].Body);
         Assert.Equal("test-token", handler.Requests[0].BearerToken);
         Assert.Equal(HttpMethod.Get, handler.Requests[1].Method);
         Assert.Equal(HttpMethod.Post, handler.Requests[2].Method);
@@ -191,7 +191,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             "LinkedIn campaign",
             "Test only",
             "A test post",
-            CampaignType.LinkedIn,
+            new[] { CampaignType.LinkedIn },
             CampaignStatus.Scheduled,
             DateTimeOffset.UtcNow.AddMinutes(5),
             null,
@@ -229,7 +229,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             "LinkedIn campaign",
             "Test only",
             "A test post",
-            CampaignType.LinkedIn,
+            new[] { CampaignType.LinkedIn },
             CampaignStatus.Scheduled,
             DateTimeOffset.UtcNow.AddMinutes(5),
             null,
@@ -274,7 +274,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             "LinkedIn campaign",
             "Test only",
             "A test post",
-            CampaignType.LinkedIn,
+            new[] { CampaignType.LinkedIn },
             CampaignStatus.Scheduled,
             DateTimeOffset.UtcNow.AddMinutes(5),
             "https://8.8.8.8/campaign.png",
@@ -312,7 +312,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             "LinkedIn campaign",
             "Test only",
             "A test post",
-            CampaignType.LinkedIn,
+            new[] { CampaignType.LinkedIn },
             CampaignStatus.Scheduled,
             DateTimeOffset.UtcNow.AddMinutes(5),
             "https://127.0.0.1/campaign.png",
@@ -384,6 +384,378 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         Assert.Null(storedCampaign.InstagramMediaId);
     }
 
+    [Fact]
+    public async Task MeEndpointReturnsAuthenticatedUserAndRejectsAnonymous()
+    {
+        using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+        var anonResponse = await anonymous.GetAsync("/me");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonResponse.StatusCode);
+
+        using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
+        var meResponse = await reviewer.GetAsync("/me");
+        Assert.Equal(HttpStatusCode.OK, meResponse.StatusCode);
+
+        var me = await meResponse.Content.ReadFromJsonAsync<MeResponse>();
+        Assert.NotNull(me);
+        Assert.Equal(UserIds.Reviewer, me.Id);
+        Assert.Equal("reviewer@example.com", me.Email);
+        Assert.Contains(UserCaracteristics.isAprovador, me.Caracteristics);
+        Assert.Contains(UserCaracteristics.isActive, me.Caracteristics);
+    }
+
+    [Fact]
+    public async Task AdminCanDeactivateUserAndDeactivatedUserCannotAuthenticate()
+    {
+        using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
+        using var other = await LoginAsync("other@example.com", "OtherPass123!");
+
+        var deactivate = await admin.PutAsync($"/users/{UserIds.OtherUser}/deactivate", null);
+        Assert.Equal(HttpStatusCode.NoContent, deactivate.StatusCode);
+
+        var revokedSessionResponse = await other.GetAsync("/me");
+        Assert.Equal(HttpStatusCode.Unauthorized, revokedSessionResponse.StatusCode);
+
+        using var freshClient = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+        var relogin = await freshClient.PostAsJsonAsync(
+            "/login",
+            new { email = "other@example.com", password = "OtherPass123!" });
+        Assert.Equal(HttpStatusCode.Unauthorized, relogin.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminCanCreateAprovandoUserWhoCanLoginAndAdminCanEditAndDeactivate()
+    {
+        using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
+
+        var createResponse = await admin.PostAsJsonAsync(
+            "/users",
+            new
+            {
+                name = "Maria Silva",
+                email = "aprovando.novo@example.com",
+                password = "NewUser123!",
+                birthDate = "1995-05-10",
+                taxId = "123456789",
+                caracteristics = new[] { "isActive", "isAprovando" }
+            });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<MeResponse>();
+        Assert.NotNull(created);
+        Assert.True(created.Id > 0);
+        Assert.Contains(UserCaracteristics.isActive, created.Caracteristics);
+        Assert.Contains(UserCaracteristics.isAprovando, created.Caracteristics);
+
+        using var newUserClient = await LoginAsync("aprovando.novo@example.com", "NewUser123!");
+        var meResponse = await newUserClient.GetAsync("/me");
+        Assert.Equal(HttpStatusCode.OK, meResponse.StatusCode);
+        var campaignsResponse = await newUserClient.GetAsync("/campaigns");
+        Assert.Equal(HttpStatusCode.OK, campaignsResponse.StatusCode);
+
+        var editResponse = await admin.PutAsJsonAsync(
+            $"/users/{created.Id}",
+            new
+            {
+                name = "Maria Silva Atualizada",
+                email = "aprovando.novo@example.com",
+                password = "UpdatedPass123!",
+                caracteristics = new[] { "isAprovando" }
+            });
+        Assert.Equal(HttpStatusCode.NoContent, editResponse.StatusCode);
+
+        using var oldPasswordClient = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+        var oldPassLogin = await oldPasswordClient.PostAsJsonAsync(
+            "/login",
+            new { email = "aprovando.novo@example.com", password = "NewUser123!" });
+        Assert.Equal(HttpStatusCode.Unauthorized, oldPassLogin.StatusCode);
+
+        using var updatedClient = await LoginAsync("aprovando.novo@example.com", "UpdatedPass123!");
+
+        var deactivateResponse = await admin.PutAsync($"/users/{created.Id}/deactivate", null);
+        Assert.Equal(HttpStatusCode.NoContent, deactivateResponse.StatusCode);
+
+        using var deactivatedClient = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+        var deactivatedLogin = await deactivatedClient.PostAsJsonAsync(
+            "/login",
+            new { email = "aprovando.novo@example.com", password = "UpdatedPass123!" });
+        Assert.Equal(HttpStatusCode.Unauthorized, deactivatedLogin.StatusCode);
+    }
+
+    [Fact]
+    public async Task AdminAddingAprovadorRoleToSelfUpdatesMeAndEnablesApprovalFlow()
+    {
+        using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
+        using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
+        var campaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+
+        var preUpdateApprove = await admin.PutAsync($"/campaigns/{campaign.Id}/review/approve", null);
+        Assert.Equal(HttpStatusCode.Forbidden, preUpdateApprove.StatusCode);
+
+        var editSelf = await admin.PutAsJsonAsync(
+            $"/users/{UserIds.Admin}",
+            new { caracteristics = new[] { "Admin", "isAprovador" } });
+        Assert.Equal(HttpStatusCode.NoContent, editSelf.StatusCode);
+
+        var meResponse = await admin.GetAsync("/me");
+        Assert.Equal(HttpStatusCode.OK, meResponse.StatusCode);
+        var me = await meResponse.Content.ReadFromJsonAsync<MeResponse>();
+        Assert.NotNull(me);
+        Assert.Contains(UserCaracteristics.Admin, me.Caracteristics);
+        Assert.Contains(UserCaracteristics.isAprovador, me.Caracteristics);
+        Assert.Contains(UserCaracteristics.isActive, me.Caracteristics);
+
+        var postUpdateApprove = await admin.PutAsync($"/campaigns/{campaign.Id}/review/approve", null);
+        Assert.Equal(HttpStatusCode.OK, postUpdateApprove.StatusCode);
+        Assert.Equal(CampaignStatus.Scheduled, (await ReadCampaignAsync(postUpdateApprove)).Status);
+    }
+
+    [Fact]
+    public async Task MultiTypeCampaignPersistsAllTypesAndPublishesToInstagram()
+    {
+        using var owner = await LoginAsync("standard@example.com", "StandardPass123!");
+        var campaign = await CreateCampaignAsync(
+            owner,
+            UserIds.StandardOwner,
+            CampaignType.Email,
+            CampaignType.Instagram);
+
+        Assert.Equal([CampaignType.Email, CampaignType.Instagram], campaign.Types);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+            await db.Campaigns
+                .Where(item => item.Id == campaign.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(
+                    item => item.PublicationDate,
+                    DateTimeOffset.UtcNow.AddMinutes(-1)));
+        }
+
+        var handler = new QueueHttpMessageHandler(
+            JsonResponse(HttpStatusCode.OK, """{"id":"container-123"}"""),
+            JsonResponse(HttpStatusCode.OK, """{"status_code":"FINISHED"}"""),
+            JsonResponse(HttpStatusCode.OK, """{"id":"media-456"}"""));
+        await RunPublishingWorkerOnceAsync(handler);
+
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        var stored = await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == campaign.Id);
+        Assert.Equal(CampaignStatus.Closed, stored.Status);
+        Assert.Equal("media-456", stored.InstagramMediaId);
+    }
+
+    [Fact]
+    public async Task RequestChangesPersistsMotivoAndResubmissionClearsIt()
+    {
+        using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
+        using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
+        var campaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+
+        var requestedChanges = await reviewer.PutAsJsonAsync(
+            $"/campaigns/{campaign.Id}/review/request-changes",
+            new
+            {
+                motivo = Motivo.InadequateLanguage,
+                justificationText = "Tone is too informal."
+            });
+        Assert.Equal(HttpStatusCode.OK, requestedChanges.StatusCode);
+
+        var updated = await ReadCampaignAsync(requestedChanges);
+        Assert.Equal(CampaignStatus.ForChange, updated.Status);
+        Assert.Equal(Motivo.InadequateLanguage, updated.Motivo);
+        Assert.Equal("Tone is too informal.", updated.JustificationText);
+
+        var resubmit = await owner.PutAsJsonAsync(
+            $"/campaigns/{campaign.Id}/edit",
+            new
+            {
+                name = "Formal campaign",
+                description = "Updated after feedback",
+                modelMsg = "Formal message",
+                types = new[] { CampaignType.Email },
+                publicationDate = DateTimeOffset.UtcNow.AddMinutes(20)
+            });
+        Assert.Equal(HttpStatusCode.OK, resubmit.StatusCode);
+
+        var resubmitted = await ReadCampaignAsync(resubmit);
+        Assert.Equal(CampaignStatus.InReview, resubmitted.Status);
+        Assert.Equal(Motivo.None, resubmitted.Motivo);
+        Assert.Equal(string.Empty, resubmitted.JustificationText);
+    }
+
+    [Fact]
+    public async Task ForChangeEditByAdminOrAprovadorMovesToScheduledOrSendingAndOnlyAdminCanCancel()
+    {
+        using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
+        using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
+        using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
+
+        // 1. Admin editing a ForChange campaign with a future date moves it directly to Scheduled.
+        var scheduledCampaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var req1 = await reviewer.PutAsJsonAsync(
+            $"/campaigns/{scheduledCampaign.Id}/review/request-changes",
+            new { motivo = Motivo.InadequateContent, justificationText = "Missing compliance text." });
+        Assert.Equal(HttpStatusCode.OK, req1.StatusCode);
+
+        var ownerCancel = await owner.PutAsJsonAsync(
+            $"/campaigns/{scheduledCampaign.Id}/cancel",
+            new { motivo = Motivo.Other, justificationText = "Owner trying to cancel ForChange." });
+        Assert.Equal(HttpStatusCode.Forbidden, ownerCancel.StatusCode);
+
+        var adminEdit = await admin.PutAsJsonAsync(
+            $"/campaigns/{scheduledCampaign.Id}/edit",
+            new { name = "Admin adjusted", publicationDate = DateTimeOffset.UtcNow.AddMinutes(30) });
+        Assert.Equal(HttpStatusCode.OK, adminEdit.StatusCode);
+        var adminEdited = await ReadCampaignAsync(adminEdit);
+        Assert.Equal(CampaignStatus.Scheduled, adminEdited.Status);
+        Assert.Equal(Motivo.None, adminEdited.Motivo);
+        Assert.Equal(string.Empty, adminEdited.JustificationText);
+
+        // 2. Aprovador editing a ForChange campaign with current minute moves it directly to Sending.
+        var sendingCampaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var req2 = await reviewer.PutAsJsonAsync(
+            $"/campaigns/{sendingCampaign.Id}/review/request-changes",
+            new { motivo = Motivo.InadequateLanguage, justificationText = "Adjust phrasing." });
+        Assert.Equal(HttpStatusCode.OK, req2.StatusCode);
+
+        var current = DateTimeOffset.UtcNow;
+        if (current.Second >= 55)
+            await Task.Delay((60 - current.Second) * 1000 + 200);
+
+        var reviewerEdit = await reviewer.PutAsJsonAsync(
+            $"/campaigns/{sendingCampaign.Id}/edit",
+            new { name = "Reviewer immediate publish", publicationDate = DateTimeOffset.UtcNow });
+        Assert.Equal(HttpStatusCode.OK, reviewerEdit.StatusCode);
+        var reviewerEdited = await ReadCampaignAsync(reviewerEdit);
+        Assert.Equal(CampaignStatus.Sending, reviewerEdited.Status);
+        Assert.Equal(Motivo.None, reviewerEdited.Motivo);
+        Assert.Equal(string.Empty, reviewerEdited.JustificationText);
+
+        // 3. Admin can cancel a campaign in ForChange.
+        var cancelCampaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var req3 = await reviewer.PutAsJsonAsync(
+            $"/campaigns/{cancelCampaign.Id}/review/request-changes",
+            new { motivo = Motivo.InadequateImage, justificationText = "Replace image." });
+        Assert.Equal(HttpStatusCode.OK, req3.StatusCode);
+
+        var adminCancel = await admin.PutAsJsonAsync(
+            $"/campaigns/{cancelCampaign.Id}/cancel",
+            new { motivo = Motivo.Other, justificationText = "Canceled by Admin." });
+        Assert.Equal(HttpStatusCode.OK, adminCancel.StatusCode);
+        Assert.Equal(CampaignStatus.Canceled, (await ReadCampaignAsync(adminCancel)).Status);
+    }
+
+    [Fact]
+    public async Task InReviewEditByAdminOrAprovadorMovesDirectlyToScheduledOrSending()
+    {
+        using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
+        using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
+        using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
+
+        var campaignForOwnerAndAdmin = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+
+        var ownerEdit = await owner.PutAsJsonAsync(
+            $"/campaigns/{campaignForOwnerAndAdmin.Id}/edit",
+            new { name = "Owner edit stays in review" });
+        Assert.Equal(HttpStatusCode.OK, ownerEdit.StatusCode);
+        Assert.Equal(CampaignStatus.InReview, (await ReadCampaignAsync(ownerEdit)).Status);
+
+        var adminEdit = await admin.PutAsJsonAsync(
+            $"/campaigns/{campaignForOwnerAndAdmin.Id}/edit",
+            new { name = "Admin edit scheduled", publicationDate = DateTimeOffset.UtcNow.AddMinutes(30) });
+        Assert.Equal(HttpStatusCode.OK, adminEdit.StatusCode);
+        Assert.Equal(CampaignStatus.Scheduled, (await ReadCampaignAsync(adminEdit)).Status);
+
+        var campaignForReviewer = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var current = DateTimeOffset.UtcNow;
+        if (current.Second >= 55)
+            await Task.Delay((60 - current.Second) * 1000 + 200);
+
+        var reviewerEdit = await reviewer.PutAsJsonAsync(
+            $"/campaigns/{campaignForReviewer.Id}/edit",
+            new { name = "Reviewer edit sending", publicationDate = DateTimeOffset.UtcNow });
+        Assert.Equal(HttpStatusCode.OK, reviewerEdit.StatusCode);
+        Assert.Equal(CampaignStatus.Sending, (await ReadCampaignAsync(reviewerEdit)).Status);
+    }
+
+    [Fact]
+    public async Task MultiPlatformInstagramAndLinkedInCampaignPublishesBothBeforeClosing()
+    {
+        using var owner = await LoginAsync("standard@example.com", "StandardPass123!");
+        var createResponse = await owner.PostAsJsonAsync(
+            "/campaigns",
+            new
+            {
+                name = "Multi-platform campaign",
+                description = "Publish to Instagram and LinkedIn",
+                modelMsg = "Cross-platform post",
+                types = new[] { CampaignType.Instagram, CampaignType.LinkedIn },
+                publicationDate = DateTimeOffset.UtcNow.AddMinutes(20),
+                imageUrl = "https://8.8.8.8/campaign.png"
+            });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var campaign = await ReadCampaignAsync(createResponse);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+            await db.Campaigns
+                .Where(item => item.Id == campaign.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(
+                    item => item.PublicationDate,
+                    DateTimeOffset.UtcNow.AddMinutes(-1)));
+        }
+
+        await RunPublishingWorkerOnceAsync(new QueueHttpMessageHandler(
+            JsonResponse(HttpStatusCode.OK, """{"id":"container-123"}"""),
+            JsonResponse(HttpStatusCode.OK, """{"status_code":"FINISHED"}"""),
+            JsonResponse(HttpStatusCode.OK, """{"id":"media-456"}""")));
+
+        using (var midScope = factory.Services.CreateScope())
+        {
+            var midDb = midScope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+            var afterInsta = await midDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == campaign.Id);
+            Assert.Equal("media-456", afterInsta.InstagramMediaId);
+            Assert.Null(afterInsta.LinkedInPostId);
+            Assert.Equal(CampaignStatus.Scheduled, afterInsta.Status);
+        }
+
+        var imageResponse = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(Encoding.UTF8.GetBytes("image-bytes"))
+        };
+        imageResponse.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        var postResponse = new HttpResponseMessage(HttpStatusCode.Created);
+        postResponse.Headers.Add("x-restli-id", "urn:li:share:post-456");
+
+        await RunLinkedInPublishingWorkerOnceAsync(new QueueHttpMessageHandler(
+            imageResponse,
+            JsonResponse(
+                HttpStatusCode.OK,
+                """{"value":{"uploadUrl":"https://www.linkedin.com/dms-uploads/upload-456","image":"urn:li:image:image-456"}}"""),
+            new HttpResponseMessage(HttpStatusCode.Created),
+            postResponse));
+
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        var finalCampaign = await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == campaign.Id);
+        Assert.Equal("media-456", finalCampaign.InstagramMediaId);
+        Assert.Equal("urn:li:share:post-456", finalCampaign.LinkedInPostId);
+        Assert.Equal(CampaignStatus.Closed, finalCampaign.Status);
+    }
+
     private async Task<HttpClient> LoginAsync(string email, string password)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -396,10 +768,16 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         return client;
     }
 
-    private async Task<CampaignResponse> CreateCampaignAsync(
+    private Task<CampaignResponse> CreateCampaignAsync(
         HttpClient client,
         CampaignType type,
-        int ownerId)
+        int ownerId) =>
+        CreateCampaignAsync(client, ownerId, type);
+
+    private async Task<CampaignResponse> CreateCampaignAsync(
+        HttpClient client,
+        int ownerId,
+        params CampaignType[] types)
     {
         var response = await client.PostAsJsonAsync(
             "/campaigns",
@@ -408,11 +786,11 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
                 name = "Workflow test campaign",
                 description = "Campaign for workflow tests",
                 modelMsg = "Test message",
-                type,
+                types,
                 publicationDate = DateTimeOffset.UtcNow.AddMinutes(20),
-                imageUrl = type == CampaignType.Instagram
+                imageUrl = types.Contains(CampaignType.Instagram)
                     ? "https://images.example.test/campaign.jpg"
-                    : type == CampaignType.LinkedIn
+                    : types.Contains(CampaignType.LinkedIn)
                         ? "https://8.8.8.8/campaign.png"
                         : null
             });
@@ -506,7 +884,19 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json")
         };
 
-    private sealed record CampaignResponse(Guid Id, CampaignStatus Status, int UserId);
+    private sealed record CampaignResponse(
+        Guid Id,
+        CampaignStatus Status,
+        int UserId,
+        List<CampaignType> Types,
+        Motivo? Motivo,
+        string? JustificationText);
+
+    private sealed record MeResponse(
+        int Id,
+        string Name,
+        string Email,
+        List<UserCaracteristics> Caracteristics);
 
     private sealed record ReasonResponse(string? JustificationText, Motivo? Motivo);
 
@@ -516,6 +906,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         public const int Reviewer = 2;
         public const int StandardOwner = 3;
         public const int OtherUser = 4;
+        public const int Admin = 5;
     }
 
     private sealed class TestApiFactory : WebApplicationFactory<Program>
@@ -577,7 +968,15 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
                     "OtherPass123!",
                     new DateOnly(1990, 1, 1),
                     "456789012",
-                    []));
+                    []),
+                new User(
+                    UserIds.Admin,
+                    "Admin User",
+                    "admin@example.com",
+                    "AdminPass123!",
+                    new DateOnly(1990, 1, 1),
+                    "567890123",
+                    [UserCaracteristics.Admin]));
             await db.SaveChangesAsync();
         }
 

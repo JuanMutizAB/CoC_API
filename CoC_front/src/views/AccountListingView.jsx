@@ -12,6 +12,9 @@ export default function AccountListingView() {
   const {
     accounts,
     visibleAccounts,
+    isLoading,
+    loadError,
+    isAdmin,
     search,
     setSearch,
     showInactive,
@@ -19,6 +22,7 @@ export default function AccountListingView() {
     sortField,
     sortDirection,
     statusMessage,
+    statusType,
     pendingDeactivate,
     setPendingDeactivate,
     handleSort,
@@ -28,6 +32,8 @@ export default function AccountListingView() {
     goToEdit,
     handleBackToCampaigns,
   } = useAccountListingController();
+
+  const colCount = isAdmin ? 5 : 4;
 
   return (
     <main className="app-page accounts-page">
@@ -65,17 +71,19 @@ export default function AccountListingView() {
             <span>Show inactive</span>
           </label>
 
-          <button
-            className="primary-button"
-            id="create-account"
-            type="button"
-            onClick={goToCreate}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            <span>Create Account</span>
-          </button>
+          {isAdmin && (
+            <button
+              className="primary-button"
+              id="create-account"
+              type="button"
+              onClick={goToCreate}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span>Create Account</span>
+            </button>
+          )}
 
           <button
             className="back-button"
@@ -95,7 +103,6 @@ export default function AccountListingView() {
             <h1 id="accounts-title">Accounts</h1>
             <p>Manage the accounts in your organization.</p>
           </div>
-          <span className="demo-badge">Demo data</span>
         </div>
 
         <div className="table-wrap">
@@ -136,24 +143,39 @@ export default function AccountListingView() {
                   </button>
                 </th>
                 <th scope="col">Email</th>
-                <th scope="col">
-                  <span className="visually-hidden">Actions</span>
-                </th>
+                {isAdmin && (
+                  <th scope="col">
+                    <span className="visually-hidden">Actions</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody id="accounts-list">
-              {visibleAccounts.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td className="empty-state" colSpan={5}>
+                  <td className="empty-state" colSpan={colCount}>
+                    Loading accounts...
+                  </td>
+                </tr>
+              ) : loadError ? (
+                <tr>
+                  <td className="empty-state" colSpan={colCount}>
+                    {loadError}
+                  </td>
+                </tr>
+              ) : visibleAccounts.length === 0 ? (
+                <tr>
+                  <td className="empty-state" colSpan={colCount}>
                     No accounts match your search.
                   </td>
                 </tr>
               ) : (
                 visibleAccounts.map((account) => {
-                  const isAdmin = hasRole(account.caracteristics, "admin");
-                  const isAprovador = hasRole(account.caracteristics, "aprovador");
-                  const isAprovando = hasRole(account.caracteristics, "aprovando");
-                  const hasAnyRole = isAdmin || isAprovador || isAprovando;
+                  const accountIsAdmin = hasRole(account.caracteristics, "admin");
+                  const accountIsAprovador = hasRole(account.caracteristics, "aprovador");
+                  const accountIsAprovando = hasRole(account.caracteristics, "aprovando");
+                  const hasAnyRole =
+                    accountIsAdmin || accountIsAprovador || accountIsAprovando;
 
                   return (
                     <tr key={account.id}>
@@ -172,17 +194,17 @@ export default function AccountListingView() {
                             <span className="role-badge role-badge--none">—</span>
                           ) : (
                             <>
-                              {isAdmin && (
+                              {accountIsAdmin && (
                                 <span className="role-badge role-badge--admin">
                                   Admin
                                 </span>
                               )}
-                              {isAprovador && (
+                              {accountIsAprovador && (
                                 <span className="role-badge role-badge--aprovador">
                                   Aprovador
                                 </span>
                               )}
-                              {isAprovando && (
+                              {accountIsAprovando && (
                                 <span className="role-badge role-badge--aprovando">
                                   Aprovando
                                 </span>
@@ -195,31 +217,33 @@ export default function AccountListingView() {
                       <td>{formatBirthDate(account.birthDate)}</td>
                       <td className="account-email">{account.email}</td>
 
-                      <td>
-                        <div className="row-actions">
-                          <button
-                            className="edit-button"
-                            type="button"
-                            aria-label={`Edit ${account.name}`}
-                            onClick={() => goToEdit(account.id)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="deactivate-button"
-                            type="button"
-                            disabled={!account.active}
-                            aria-label={`Deactivate ${account.name}`}
-                            onClick={() => {
-                              if (account.active) {
-                                setPendingDeactivate(account);
-                              }
-                            }}
-                          >
-                            {account.active ? "Deactivate" : "Deactivated"}
-                          </button>
-                        </div>
-                      </td>
+                      {isAdmin && (
+                        <td>
+                          <div className="row-actions">
+                            <button
+                              className="edit-button"
+                              type="button"
+                              aria-label={`Edit ${account.name}`}
+                              onClick={() => goToEdit(account.id)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="deactivate-button"
+                              type="button"
+                              disabled={!account.active}
+                              aria-label={`Deactivate ${account.name}`}
+                              onClick={() => {
+                                if (account.active) {
+                                  setPendingDeactivate(account);
+                                }
+                              }}
+                            >
+                              {account.active ? "Deactivate" : "Deactivated"}
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -233,7 +257,12 @@ export default function AccountListingView() {
             Showing {visibleAccounts.length} of {accounts.length} accounts
           </p>
         </div>
-        <p className="action-message" id="action-message" role="status" aria-live="polite">
+        <p
+          className={`action-message${statusType ? ` ${statusType}` : ""}`}
+          id="action-message"
+          role="status"
+          aria-live="polite"
+        >
           {statusMessage}
         </p>
       </section>

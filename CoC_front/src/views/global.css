@@ -45,6 +45,8 @@ button {
 .page-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 20px;
   min-height: 184px;
   padding: 32px clamp(24px, 5vw, 80px);
   overflow: hidden;
@@ -53,6 +55,42 @@ button {
   background-position: right center;
   background-size: cover;
   color: #ffffff;
+}
+
+.header-user-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.header-user-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.header-logout-btn {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.header-logout-btn:hover {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.auth-loading-card p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--muted);
 }
 
 .page-header .brand {
@@ -599,8 +637,15 @@ button {
 
 @media (max-width: 680px) {
   .page-header {
+    flex-direction: column;
+    align-items: flex-start;
     min-height: 150px;
     padding: 24px;
+  }
+
+  .header-user-bar {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .page-header .brand {

@@ -30,6 +30,13 @@ public class CoC_DbContext : DbContext
             user.UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
+        modelBuilder.Entity<Campaign>(campaign =>
+        {
+            campaign.Property(c => c.Types)
+                .HasField("types")
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
         modelBuilder.Entity<UserSession>(session =>
         {
             session.HasKey(s => s.TokenHash);
