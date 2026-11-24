@@ -9,7 +9,7 @@ import { useAuth } from "./AuthController";
  */
 export function useAccountListingController() {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const {
     accounts,
     isLoading,
@@ -84,6 +84,16 @@ export function useAccountListingController() {
       return;
     }
 
+    if (
+      currentUser &&
+      String(pendingDeactivate.id) === String(currentUser.id)
+    ) {
+      setPendingDeactivate(null);
+      setStatusType("error");
+      setStatusMessage("You cannot deactivate your own account.");
+      return;
+    }
+
     const target = pendingDeactivate;
     setPendingDeactivate(null);
 
@@ -107,6 +117,7 @@ export function useAccountListingController() {
     isLoading,
     loadError,
     isAdmin,
+    currentUserId: currentUser?.id ?? null,
     search,
     setSearch,
     showInactive,

@@ -15,6 +15,7 @@ export default function AccountListingView() {
     isLoading,
     loadError,
     isAdmin,
+    currentUserId,
     search,
     setSearch,
     showInactive,
@@ -176,6 +177,9 @@ export default function AccountListingView() {
                   const accountIsAprovando = hasRole(account.caracteristics, "aprovando");
                   const hasAnyRole =
                     accountIsAdmin || accountIsAprovador || accountIsAprovando;
+                  const isSelf =
+                    currentUserId !== null &&
+                    String(account.id) === String(currentUserId);
 
                   return (
                     <tr key={account.id}>
@@ -231,10 +235,15 @@ export default function AccountListingView() {
                             <button
                               className="deactivate-button"
                               type="button"
-                              disabled={!account.active}
+                              disabled={!account.active || isSelf}
+                              title={
+                                isSelf
+                                  ? "You cannot deactivate your own account"
+                                  : undefined
+                              }
                               aria-label={`Deactivate ${account.name}`}
                               onClick={() => {
-                                if (account.active) {
+                                if (account.active && !isSelf) {
                                   setPendingDeactivate(account);
                                 }
                               }}

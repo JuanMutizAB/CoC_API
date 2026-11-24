@@ -44,6 +44,7 @@ builder.Services.AddHttpClient<LinkedInApiClient>(client =>
     AllowAutoRedirect = false
 });
 builder.Services.AddHostedService<LinkedInPublishingService>();
+builder.Services.AddHostedService<CampaignExpirationService>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Data.Sqlite;
 
@@ -412,6 +413,10 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
         using var other = await LoginAsync("other@example.com", "OtherPass123!");
 
+        var selfDeactivate = await admin.PutAsync($"/users/{UserIds.Admin}/deactivate", null);
+        Assert.Equal(HttpStatusCode.BadRequest, selfDeactivate.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/me")).StatusCode);
+
         var deactivate = await admin.PutAsync($"/users/{UserIds.OtherUser}/deactivate", null);
         Assert.Equal(HttpStatusCode.NoContent, deactivate.StatusCode);
 
@@ -756,6 +761,62 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         Assert.Equal(CampaignStatus.Closed, finalCampaign.Status);
     }
 
+    [Fact]
+    public async Task OverdueApprovedScheduledOrSendingCampaignsAreMarkedFailedAfterFiveMinutes()
+    {
+        using var owner = await LoginAsync("standard@example.com", "StandardPass123!");
+        using var approvalOwner = await LoginAsync("owner@example.com", "OwnerPass123!");
+        using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
+
+        var approvedCampaign = await CreateCampaignAsync(approvalOwner, CampaignType.Instagram, UserIds.ApprovalOwner);
+        var approveResponse = await reviewer.PutAsync($"/campaigns/{approvedCampaign.Id}/review/approve", null);
+        Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
+
+        var scheduledOverdue = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
+        var sendingOverdue = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
+        var scheduledWithinGrace = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
+        var closedOverdue = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
+
+        var overdueTime = DateTimeOffset.UtcNow.AddMinutes(-6);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+            await db.Campaigns
+                .Where(item => item.Id == approvedCampaign.Id || item.Id == scheduledOverdue.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.PublicationDate, overdueTime));
+            await db.Campaigns
+                .Where(item => item.Id == sendingOverdue.Id)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(item => item.PublicationDate, overdueTime)
+                    .SetProperty(item => item.Status, CampaignStatus.Sending));
+            await db.Campaigns
+                .Where(item => item.Id == scheduledWithinGrace.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(
+                    item => item.PublicationDate,
+                    DateTimeOffset.UtcNow.AddMinutes(-3)));
+            await db.Campaigns
+                .Where(item => item.Id == closedOverdue.Id)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(item => item.PublicationDate, overdueTime)
+                    .SetProperty(item => item.Status, CampaignStatus.Closed));
+        }
+
+        var service = new CampaignExpirationService(
+            factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            factory.Services.GetRequiredService<IHostEnvironment>(),
+            factory.Services.GetRequiredService<ILogger<CampaignExpirationService>>());
+
+        await service.FailOverdueCampaignsAsync(CancellationToken.None);
+
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        Assert.Equal(CampaignStatus.Failed, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == approvedCampaign.Id)).Status);
+        Assert.Equal(CampaignStatus.Failed, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == scheduledOverdue.Id)).Status);
+        Assert.Equal(CampaignStatus.Failed, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == sendingOverdue.Id)).Status);
+        Assert.Equal(CampaignStatus.Scheduled, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == scheduledWithinGrace.Id)).Status);
+        Assert.Equal(CampaignStatus.Closed, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == closedOverdue.Id)).Status);
+    }
+
     private async Task<HttpClient> LoginAsync(string email, string password)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -995,7 +1056,9 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
                 var converter = new DateTimeOffsetToBinaryConverter();
                 foreach (var property in modelBuilder.Model.GetEntityTypes()
                              .SelectMany(entity => entity.GetProperties())
-                             .Where(property => property.ClrType == typeof(DateTimeOffset)))
+                             .Where(property =>
+                                 property.ClrType == typeof(DateTimeOffset)
+                                 || property.ClrType == typeof(DateTimeOffset?)))
                 {
                     property.SetValueConverter(converter);
                 }
