@@ -59,8 +59,9 @@ namespace CoC_API.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("int")
+                    b.PrimitiveCollection<string>("Types")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("Model");
 
                     b.Property<int>("UserId")

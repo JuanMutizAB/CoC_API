@@ -17,6 +17,8 @@ export default function LoginView() {
     emailError,
     passwordError,
     formStatus,
+    statusRole,
+    isSubmitting,
     emailInputRef,
     handleSubmit,
   } = useLoginController();
@@ -91,10 +93,14 @@ export default function LoginView() {
             </span>
           </div>
 
-          <button className="login-button" type="submit">
-            Login
+          <button className="login-button" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Logging in..." : "Login"}
           </button>
-          <p className="form-status" id="form-status" role="status">
+          <p
+            className={`form-status${statusRole === "alert" ? " error" : ""}`}
+            id="form-status"
+            role={statusRole}
+          >
             {formStatus}
           </p>
         </form>

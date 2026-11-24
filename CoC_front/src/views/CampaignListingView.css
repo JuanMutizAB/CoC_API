@@ -253,10 +253,21 @@
   white-space: nowrap;
 }
 
+.campaign-type-cell .type-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .campaign-type-cell .type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid #d5dce8;
+  border-radius: 2px;
+  background: #f8fafc;
   color: #334155;
-  font-weight: 500;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 /* ── Status Pills ── */

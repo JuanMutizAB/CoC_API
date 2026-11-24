@@ -28,6 +28,7 @@ export default function AccountCreationView() {
     errors,
     actionMessage,
     actionType,
+    isSubmitting,
     handleSubmit,
     handleClear,
     goBackToAccounts,
@@ -62,7 +63,6 @@ export default function AccountCreationView() {
               Enter details to add a new account to your organization
             </p>
           </div>
-          <span className="demo-badge">Demo data</span>
         </div>
 
         <form
@@ -203,11 +203,11 @@ export default function AccountCreationView() {
           </div>
 
           <div className="form-actions">
-            <button className="primary-button" type="submit">
+            <button className="primary-button" type="submit" disabled={isSubmitting}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              <span>Create Account</span>
+              <span>{isSubmitting ? "Creating..." : "Create Account"}</span>
             </button>
             <button
               className="cancel-button"

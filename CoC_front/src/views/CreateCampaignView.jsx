@@ -1,3 +1,4 @@
+import MultiSelectDropdown from "./components/MultiSelectDropdown";
 import PageHeader from "./components/PageHeader";
 import { useCreateCampaignController } from "../controllers/useCreateCampaignController";
 import "./CreateCampaignView.css";
@@ -9,8 +10,8 @@ export default function CreateCampaignView() {
   const {
     name,
     setName,
-    type,
-    setType,
+    types,
+    setTypes,
     description,
     setDescription,
     modelMsg,
@@ -24,6 +25,7 @@ export default function CreateCampaignView() {
     errors,
     actionMessage,
     actionType,
+    isSubmitting,
     handleSubmit,
     handleClear,
     goBackToCampaigns,
@@ -59,7 +61,6 @@ export default function CreateCampaignView() {
               Enter details to create a new campaign
             </p>
           </div>
-          <span className="demo-badge">Demo data</span>
         </div>
 
         <form
@@ -87,22 +88,14 @@ export default function CreateCampaignView() {
 
             <div className="form-group">
               <label htmlFor="campaign-type">Type</label>
-              <select
+              <MultiSelectDropdown
                 id="campaign-type"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                className={errors.type ? "invalid" : undefined}
-                required
-              >
-                <option value="" disabled>
-                  Select a type
-                </option>
-                {typeOptions.map((tp) => (
-                  <option key={tp} value={tp}>
-                    {tp}
-                  </option>
-                ))}
-              </select>
+                options={typeOptions}
+                selected={types}
+                onChange={setTypes}
+                placeholder="Select one or more types"
+                invalid={Boolean(errors.type)}
+              />
               <span className="error-message" id="type-error">
                 {errors.type}
               </span>
@@ -125,7 +118,7 @@ export default function CreateCampaignView() {
             </div>
 
             <div className="form-group form-group--full">
-              <label htmlFor="campaign-modelmsg">Model Message</label>
+              <label htmlFor="campaign-modelmsg">Message to send</label>
               <textarea
                 id="campaign-modelmsg"
                 rows={5}
@@ -197,11 +190,11 @@ export default function CreateCampaignView() {
           </div>
 
           <div className="form-actions">
-            <button className="primary-button" type="submit">
+            <button className="primary-button" type="submit" disabled={isSubmitting}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              <span>Create Campaign</span>
+              <span>{isSubmitting ? "Creating..." : "Create Campaign"}</span>
             </button>
             <button
               className="cancel-button"

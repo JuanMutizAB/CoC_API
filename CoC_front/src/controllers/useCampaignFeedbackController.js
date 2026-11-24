@@ -1,18 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  CampaignStatus,
-  getCampaignById,
-  loadStoredCampaign,
+  cancelCampaignApi,
+  fetchCampaignById,
   Motivo,
-  saveStoredFeedback,
-  setCampaignFlashMessage,
-  updateCampaignInStore,
+  requestCampaignChangesApi,
 } from "../models/campaignModel";
 
 /**
  * Controller hook for the Campaign Feedback view.
- * In default/change mode, sets status to ForChange; in cancel mode (?mode=cancel), sets status to Canceled.
+ * Submits cancellation (PUT /campaigns/{id}/cancel) or change requests (PUT /campaigns/{id}/review/request-changes).
  */
 export function useCampaignFeedbackController() {
   const { id } = useParams();
@@ -20,15 +17,16 @@ export function useCampaignFeedbackController() {
   const navigate = useNavigate();
 
   const isCancelMode = searchParams.get("mode") === "cancel";
-  const campaign = id
-    ? getCampaignById(id)
-    : getCampaignById(loadStoredCampaign()?.id);
+  const [campaign, setCampaign] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const reasons = Object.values(Motivo).filter((m) => m !== Motivo.None);
   const [reason, setReason] = useState("");
   const [feedbackText, setFeedbackText] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [statusRole, setStatusRole] = useState("status");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     document.title = isCancelMode
@@ -36,8 +34,45 @@ export function useCampaignFeedbackController() {
       : "Campaign Feedback - CoC";
   }, [isCancelMode]);
 
-  const handleSubmit = (event) => {
+  useEffect(() => {
+    if (!id) {
+      setCampaign(null);
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError("");
+
+    fetchCampaignById(id)
+      .then((loaded) => {
+        if (!cancelled) {
+          setCampaign(loaded);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCampaign(null);
+          setLoadError(error?.message || "Could not load campaign.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!id || isSubmitting) {
+      return;
+    }
 
     if (!reason) {
       setStatusRole("alert");
@@ -56,39 +91,42 @@ export function useCampaignFeedbackController() {
       return;
     }
 
-    const targetStatus = isCancelMode
-      ? CampaignStatus.Canceled
-      : CampaignStatus.ForChange;
+    setStatusMessage("");
+    setStatusRole("status");
+    setIsSubmitting(true);
 
-    saveStoredFeedback({
-      campaignId: campaign?.id ?? null,
-      mode: isCancelMode ? "cancel" : "change",
-      reason,
-      feedback: trimmedFeedback,
-      createdAt: new Date().toISOString(),
-    });
+    try {
+      if (isCancelMode) {
+        await cancelCampaignApi(id, {
+          motivo: reason,
+          justificationText: trimmedFeedback,
+        });
+      } else {
+        await requestCampaignChangesApi(id, {
+          motivo: reason,
+          justificationText: trimmedFeedback,
+        });
+      }
 
-    if (campaign) {
-      updateCampaignInStore(campaign.id, {
-        status: targetStatus,
-        motivo: reason,
-        justificationText: trimmedFeedback,
+      const label = campaign?.name ? `"${campaign.name}"` : "Campaign";
+      navigate("/campaigns", {
+        state: {
+          flashMessage: isCancelMode
+            ? `Campaign ${label} was canceled (${reason}).`
+            : `Campaign ${label} sent for change (${reason}).`,
+        },
       });
-      setCampaignFlashMessage(
-        isCancelMode
-          ? `Campaign "${campaign.name}" was canceled (${reason}).`
-          : `Campaign "${campaign.name}" sent for change (${reason}).`
-      );
-    } else {
-      setCampaignFlashMessage(`Feedback submitted (${reason}).`);
+    } catch (error) {
+      setStatusRole("alert");
+      setStatusMessage(error?.message || "Could not submit feedback.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    navigate("/campaigns");
   };
 
   const goBackToCampaign = () => {
-    if (campaign) {
-      navigate(`/campaigns/${campaign.id}/edit`);
+    if (id) {
+      navigate(`/campaigns/${id}/edit`);
     } else {
       navigate("/campaigns");
     }
@@ -96,6 +134,8 @@ export function useCampaignFeedbackController() {
 
   return {
     campaign,
+    isLoading,
+    loadError,
     isCancelMode,
     reasons,
     reason,
@@ -104,6 +144,7 @@ export function useCampaignFeedbackController() {
     setFeedbackText,
     statusMessage,
     statusRole,
+    isSubmitting,
     handleSubmit,
     goBackToCampaign,
   };

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -121,6 +121,8 @@ namespace CoC_API.Models
             {
                 if (value is null || value.Any(characteristic => !Enum.IsDefined(characteristic)))
                     throw new ArgumentException("Characteristics contain an invalid value.", nameof(caracteristics));
+                if (value.Contains(UserCaracteristics.isAprovador) && value.Contains(UserCaracteristics.isAprovando))
+                    throw new ArgumentException("A user cannot be both Aprovador and Aprovando.", nameof(caracteristics));
 
                 caracteristicsValue = value;
             }
@@ -180,7 +182,9 @@ namespace CoC_API.Models
             if (!this.caracteristics.Contains(UserCaracteristics.isActive))
                 throw new InvalidOperationException("User is already deactivated.");
 
-            this.caracteristics.Remove(UserCaracteristics.isActive);
+            this.caracteristics = this.caracteristics
+                .Where(characteristic => characteristic != UserCaracteristics.isActive)
+                .ToList();
         }
 
         public bool HasCharacteristic(UserCaracteristics characteristic)

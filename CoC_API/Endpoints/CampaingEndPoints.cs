@@ -16,6 +16,9 @@ public static class CampaingEndPoints
             if (user is null)
                 return Results.Unauthorized();
 
+            if (user.HasCharacteristic(UserCaracteristics.Admin))
+                return Results.Ok(await db.Campaigns.ToListAsync());
+
             var ownCampaigns = await db.Campaigns
                 .Where(campaign => campaign.UserId == user.id)
                 .ToListAsync();
@@ -24,7 +27,9 @@ public static class CampaingEndPoints
                 return Results.Ok(ownCampaigns);
 
             var reviewCampaigns = await db.Campaigns
-                .Where(campaign => campaign.Status == CampaignStatus.InReview)
+                .Where(campaign =>
+                    campaign.Status == CampaignStatus.InReview
+                    || campaign.Status == CampaignStatus.ForChange)
                 .ToListAsync();
             var reviewOwnerIds = reviewCampaigns
                 .Select(campaign => campaign.UserId)
@@ -61,7 +66,8 @@ public static class CampaingEndPoints
                 var status = user.HasCharacteristic(UserCaracteristics.isAprovando)
                     ? CampaignStatus.InReview
                     : publicationStatus;
-                if (request.Type is CampaignType.Instagram or CampaignType.LinkedIn
+                var types = request.Types ?? new List<CampaignType>();
+                if ((types.Contains(CampaignType.Instagram) || types.Contains(CampaignType.LinkedIn))
                     && status == CampaignStatus.Sending)
                     status = CampaignStatus.Scheduled;
 
@@ -69,7 +75,7 @@ public static class CampaingEndPoints
                     request.Name,
                     request.Description,
                     request.ModelMsg,
-                    request.Type,
+                    types,
                     status,
                     request.PublicationDate,
                     request.ImageUrl,
@@ -99,11 +105,18 @@ public static class CampaingEndPoints
             var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
-            if (campaign.UserId != user.id)
+            var isAdmin = user.HasCharacteristic(UserCaracteristics.Admin);
+            var isAprovador = user.HasCharacteristic(UserCaracteristics.isAprovador);
+            var canAprovadorEditReviewable = isAprovador
+                && campaign.Status is CampaignStatus.ForChange or CampaignStatus.InReview
+                && await CanViewCampaignAsync(campaign, user, db);
+            if (campaign.UserId != user.id && !isAdmin && !canAprovadorEditReviewable)
                 return Results.Forbid();
             if (campaign.Status is CampaignStatus.Canceled or CampaignStatus.Closed)
                 return Results.Conflict(new { erro = "This campaign can no longer be edited." });
             if (campaign.Status == CampaignStatus.ForChange
+                && !isAdmin
+                && !isAprovador
                 && !user.HasCharacteristic(UserCaracteristics.isAprovando))
                 return Results.Forbid();
 
@@ -115,19 +128,29 @@ public static class CampaingEndPoints
                 var name = request.Name ?? campaign.Name;
                 var description = request.Description ?? campaign.Description;
                 var modelMsg = request.ModelMsg ?? campaign.ModelMsg;
-                var type = request.Type ?? campaign.Type;
+                var types = request.Types ?? campaign.Types;
                 var publicationDate = request.PublicationDate ?? campaign.PublicationDate;
                 var imageUrl = request.ImageUrl is null
                     ? campaign.ImageUrl
                     : string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl;
 
-                var status = campaign.Status == CampaignStatus.ForChange
-                    && user.HasCharacteristic(UserCaracteristics.isAprovando)
-                    ? CampaignStatus.InReview
-                    : campaign.Status;
-                if (status == CampaignStatus.Scheduled)
+                var status = campaign.Status;
+                if (campaign.Status == CampaignStatus.ForChange)
+                {
+                    status = isAdmin || isAprovador
+                        ? Campaign.ResolvePublicationStatus(publicationDate, now)
+                        : CampaignStatus.InReview;
+                }
+                else if (campaign.Status == CampaignStatus.InReview && (isAdmin || isAprovador))
+                {
                     status = Campaign.ResolvePublicationStatus(publicationDate, now);
-                if (type is CampaignType.Instagram or CampaignType.LinkedIn
+                }
+                else if (status == CampaignStatus.Scheduled)
+                {
+                    status = Campaign.ResolvePublicationStatus(publicationDate, now);
+                }
+
+                if ((types.Contains(CampaignType.Instagram) || types.Contains(CampaignType.LinkedIn))
                     && status == CampaignStatus.Sending)
                     status = CampaignStatus.Scheduled;
 
@@ -135,7 +158,7 @@ public static class CampaingEndPoints
                     name,
                     description,
                     modelMsg,
-                    type,
+                    types,
                     status,
                     publicationDate,
                     imageUrl,
@@ -185,7 +208,10 @@ public static class CampaingEndPoints
             var user = await FindAuthenticatedUserAsync(principal, db);
             if (user is null)
                 return Results.Unauthorized();
-            if (campaign.UserId != user.id)
+            var isAdmin = user.HasCharacteristic(UserCaracteristics.Admin);
+            if (campaign.UserId != user.id && !isAdmin)
+                return Results.Forbid();
+            if (campaign.Status == CampaignStatus.ForChange && !isAdmin)
                 return Results.Forbid();
 
             try
@@ -257,7 +283,7 @@ public static class CampaingEndPoints
 
             try
             {
-                campaign.RequestChanges(request.JustificationText);
+                campaign.RequestChanges(request.JustificationText, request.Motivo);
                 await db.SaveChangesAsync();
                 return Results.Ok(campaign);
             }
@@ -345,11 +371,11 @@ public static class CampaingEndPoints
         User user,
         CoC_DbContext db)
     {
-        if (campaign.UserId == user.id)
+        if (user.HasCharacteristic(UserCaracteristics.Admin) || campaign.UserId == user.id)
             return true;
 
         if (!user.HasCharacteristic(UserCaracteristics.isAprovador)
-            || campaign.Status != CampaignStatus.InReview)
+            || campaign.Status is not (CampaignStatus.InReview or CampaignStatus.ForChange))
             return false;
 
         var owner = await db.Users.FindAsync(campaign.UserId);

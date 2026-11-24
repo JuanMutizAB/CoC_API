@@ -8,6 +8,8 @@ import "./CampaignFeedbackView.css";
 export default function CampaignFeedbackView() {
   const {
     campaign,
+    isLoading,
+    loadError,
     isCancelMode,
     reasons,
     reason,
@@ -16,9 +18,55 @@ export default function CampaignFeedbackView() {
     setFeedbackText,
     statusMessage,
     statusRole,
+    isSubmitting,
     handleSubmit,
     goBackToCampaign,
   } = useCampaignFeedbackController();
+
+  if (isLoading) {
+    return (
+      <main className="app-page feedback-page">
+        <PageHeader title="Campaign Feedback" />
+        <section
+          className="content-card feedback-card"
+          aria-labelledby="feedback-title"
+        >
+          <div className="section-heading">
+            <div>
+              <h1 id="feedback-title">Campaign Feedback</h1>
+              <p>Loading campaign details...</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!campaign && loadError) {
+    return (
+      <main className="app-page feedback-page">
+        <PageHeader title="Campaign Feedback" />
+        <section
+          className="content-card feedback-card"
+          aria-labelledby="feedback-title"
+        >
+          <div className="section-heading">
+            <div>
+              <h1 id="feedback-title">Campaign Feedback</h1>
+              <p>{loadError}</p>
+            </div>
+            <button
+              className="back-button"
+              type="button"
+              onClick={goBackToCampaign}
+            >
+              Back to Campaign
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   const subtitle = isCancelMode
     ? campaign
@@ -103,8 +151,9 @@ export default function CampaignFeedbackView() {
               className="primary-button"
               type="submit"
               id="submit-campaign"
+              disabled={isSubmitting}
             >
-              <span>Submit Feedback</span>
+              <span>{isSubmitting ? "Submitting..." : "Submit Feedback"}</span>
             </button>
           </div>
         </form>

@@ -2,16 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { normalizeCharacteristics } from "../models/accountModel";
 import { useAccounts } from "./AccountsController";
+import { useAuth } from "./AuthController";
 
 /**
  * Controller hook for the Account Listing view.
  */
 export function useAccountListingController() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const {
     accounts,
+    isLoading,
+    loadError,
     flashMessage,
     clearFlashMessage,
+    refreshAccounts,
     deactivateAccount,
   } = useAccounts();
 
@@ -20,15 +25,18 @@ export function useAccountListingController() {
   const [sortField, setSortField] = useState("name");
   const [sortDirection, setSortDirection] = useState("ascending");
   const [statusMessage, setStatusMessage] = useState("");
+  const [statusType, setStatusType] = useState("");
   const [pendingDeactivate, setPendingDeactivate] = useState(null);
 
   useEffect(() => {
     document.title = "Account Management - CoC";
-  }, []);
+    refreshAccounts();
+  }, [refreshAccounts]);
 
   useEffect(() => {
     if (flashMessage) {
       setStatusMessage(flashMessage);
+      setStatusType("success");
       clearFlashMessage();
     }
   }, [flashMessage, clearFlashMessage]);
@@ -70,12 +78,23 @@ export function useAccountListingController() {
     return sortDirection === "ascending" ? "↑" : "↓";
   };
 
-  const handleConfirmDeactivate = () => {
-    if (pendingDeactivate && pendingDeactivate.active) {
-      deactivateAccount(pendingDeactivate.id);
-      setStatusMessage(`${pendingDeactivate.name} was deactivated in this demo.`);
+  const handleConfirmDeactivate = async () => {
+    if (!pendingDeactivate || !pendingDeactivate.active) {
+      setPendingDeactivate(null);
+      return;
     }
+
+    const target = pendingDeactivate;
     setPendingDeactivate(null);
+
+    try {
+      await deactivateAccount(target.id);
+      setStatusType("success");
+      setStatusMessage(`${target.name} was deactivated.`);
+    } catch (error) {
+      setStatusType("error");
+      setStatusMessage(error?.message || "Could not deactivate account.");
+    }
   };
 
   const goToCreate = () => navigate("/accounts/create");
@@ -85,6 +104,9 @@ export function useAccountListingController() {
   return {
     accounts,
     visibleAccounts,
+    isLoading,
+    loadError,
+    isAdmin,
     search,
     setSearch,
     showInactive,
@@ -92,6 +114,7 @@ export function useAccountListingController() {
     sortField,
     sortDirection,
     statusMessage,
+    statusType,
     pendingDeactivate,
     setPendingDeactivate,
     handleSort,

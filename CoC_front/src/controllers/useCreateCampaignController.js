@@ -3,10 +3,9 @@ import { useNavigate } from "react-router-dom";
 import {
   CampaignType,
   combineDateAndTime,
-  createCampaignInStore,
+  createCampaignApi,
   formatPublishTimeInput,
   isValidPublishTime,
-  setCampaignFlashMessage,
 } from "../models/campaignModel";
 import { validateImageUrl } from "../models/validationModel";
 
@@ -27,7 +26,7 @@ export function useCreateCampaignController() {
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
-  const [type, setType] = useState("");
+  const [types, setTypes] = useState([]);
   const [description, setDescription] = useState("");
   const [modelMsg, setModelMsg] = useState("");
   const [publishDate, setPublishDate] = useState("");
@@ -37,6 +36,7 @@ export function useCreateCampaignController() {
   const [errors, setErrors] = useState(INITIAL_ERRORS);
   const [actionMessage, setActionMessage] = useState("");
   const [actionType, setActionType] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     document.title = "Create Campaign - CoC";
@@ -52,16 +52,19 @@ export function useCreateCampaignController() {
     setActionType("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
 
     const nextErrors = { ...INITIAL_ERRORS };
 
     if (!name.trim()) {
       nextErrors.name = "Campaign name is required.";
     }
-    if (!type) {
-      nextErrors.type = "Campaign type is required.";
+    if (!types || types.length === 0) {
+      nextErrors.type = "Select at least one campaign type.";
     }
     if (!description.trim()) {
       nextErrors.description = "Description is required.";
@@ -96,23 +99,38 @@ export function useCreateCampaignController() {
       return;
     }
 
-    const trimmedName = name.trim();
-    createCampaignInStore({
-      name: trimmedName,
-      description: description.trim(),
-      modelMsg: modelMsg.trim(),
-      type,
-      publicationDate: combineDateAndTime(publishDate, publishTime),
-      imageUrl: imageUrl.trim() || null,
-    });
+    setErrors(INITIAL_ERRORS);
+    setActionMessage("");
+    setActionType("");
 
-    setCampaignFlashMessage(`Campaign "${trimmedName}" was created successfully.`);
-    navigate("/campaigns");
+    const trimmedName = name.trim();
+    setIsSubmitting(true);
+    try {
+      await createCampaignApi({
+        name: trimmedName,
+        description: description.trim(),
+        modelMsg: modelMsg.trim(),
+        types,
+        publicationDate: combineDateAndTime(publishDate, publishTime),
+        imageUrl: imageUrl.trim() || null,
+      });
+
+      navigate("/campaigns", {
+        state: {
+          flashMessage: `Campaign "${trimmedName}" was created successfully.`,
+        },
+      });
+    } catch (error) {
+      setActionMessage(error?.message || "Could not create campaign.");
+      setActionType("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClear = () => {
     setName("");
-    setType("");
+    setTypes([]);
     setDescription("");
     setModelMsg("");
     setPublishDate("");
@@ -128,8 +146,8 @@ export function useCreateCampaignController() {
   return {
     name,
     setName,
-    type,
-    setType,
+    types,
+    setTypes,
     description,
     setDescription,
     modelMsg,
@@ -143,6 +161,7 @@ export function useCreateCampaignController() {
     errors,
     actionMessage,
     actionType,
+    isSubmitting,
     handleSubmit,
     handleClear,
     goBackToCampaigns,

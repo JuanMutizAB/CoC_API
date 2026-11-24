@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   CampaignStatus,
   CampaignType,
-  consumeCampaignFlashMessage,
-  loadStoredCampaigns,
-  saveStoredCampaign,
+  fetchCampaigns,
+  normalizeCampaignTypes,
 } from "../models/campaignModel";
+import { useAuth } from "./AuthController";
 
 /**
  * Controller hook for the Campaign Listing view.
- * Handles search, status/type/date filtering, sorting, and navigation to edit/create.
+ * Loads campaigns from CoC_API and handles filtering, sorting, and navigation.
  */
 export function useCampaignListingController() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAdmin } = useAuth();
 
-  const [campaigns, setCampaigns] = useState(() => loadStoredCampaigns());
+  const [campaigns, setCampaigns] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
 
   // Form input filter values
@@ -38,11 +42,38 @@ export function useCampaignListingController() {
 
   useEffect(() => {
     document.title = "Campaigns - CoC";
-    setCampaigns(loadStoredCampaigns());
-    const flash = consumeCampaignFlashMessage();
-    if (flash) {
-      setStatusMessage(flash);
+
+    if (location.state?.flashMessage) {
+      setStatusMessage(location.state.flashMessage);
+      navigate(location.pathname, { replace: true, state: null });
     }
+  }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError("");
+
+    fetchCampaigns()
+      .then((list) => {
+        if (!cancelled) {
+          setCampaigns(list);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setLoadError(error?.message || "Could not load campaigns.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleApplyFilter = (e) => {
@@ -76,21 +107,32 @@ export function useCampaignListingController() {
         // Name filter
         if (appliedFilters.name) {
           const query = appliedFilters.name.toLocaleLowerCase();
-          const matchName = String(camp.name || "").toLocaleLowerCase().includes(query);
-          const matchDesc = String(camp.description || "").toLocaleLowerCase().includes(query);
+          const matchName = String(camp.name || "")
+            .toLocaleLowerCase()
+            .includes(query);
+          const matchDesc = String(camp.description || "")
+            .toLocaleLowerCase()
+            .includes(query);
           if (!matchName && !matchDesc) return false;
         }
 
         // Status filter
         if (appliedFilters.status && appliedFilters.status !== "All") {
-          if (String(camp.status).toLowerCase() !== appliedFilters.status.toLowerCase()) {
+          if (
+            String(camp.status).toLowerCase() !==
+            appliedFilters.status.toLowerCase()
+          ) {
             return false;
           }
         }
 
         // Type filter
         if (appliedFilters.type && appliedFilters.type !== "All") {
-          if (String(camp.type).toLowerCase() !== appliedFilters.type.toLowerCase()) {
+          const campTypes = normalizeCampaignTypes(camp.types ?? camp.type);
+          const matchesType = campTypes.some(
+            (t) => t.toLowerCase() === appliedFilters.type.toLowerCase()
+          );
+          if (!matchesType) {
             return false;
           }
         }
@@ -106,9 +148,18 @@ export function useCampaignListingController() {
         return true;
       })
       .sort((left, right) => {
+        if (sortField === "createdAt" || sortField === "publicationDate") {
+          const leftTime = Date.parse(left[sortField] || "") || 0;
+          const rightTime = Date.parse(right[sortField] || "") || 0;
+          const comparison = leftTime - rightTime;
+          return sortDirection === "ascending" ? comparison : -comparison;
+        }
+
         const leftVal = String(left[sortField] ?? "");
         const rightVal = String(right[sortField] ?? "");
-        const comparison = leftVal.localeCompare(rightVal, "pt-PT", { numeric: true });
+        const comparison = leftVal.localeCompare(rightVal, "pt-PT", {
+          numeric: true,
+        });
         return sortDirection === "ascending" ? comparison : -comparison;
       });
   }, [campaigns, appliedFilters, sortField, sortDirection]);
@@ -136,7 +187,6 @@ export function useCampaignListingController() {
   };
 
   const goToEdit = (campaign) => {
-    saveStoredCampaign(campaign);
     if (
       campaign.status === CampaignStatus.Canceled ||
       campaign.status === CampaignStatus.Closed
@@ -154,6 +204,9 @@ export function useCampaignListingController() {
   return {
     campaigns,
     visibleCampaigns,
+    isAdmin,
+    isLoading,
+    loadError,
     statusMessage,
     nameFilter,
     setNameFilter,

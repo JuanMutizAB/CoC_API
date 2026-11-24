@@ -1,3 +1,7 @@
+.create-campaign-page .create-campaign-card {
+  overflow: visible;
+}
+
 .create-campaign-page .form-group select,
 .create-campaign-page .form-group textarea {
   width: 100%;

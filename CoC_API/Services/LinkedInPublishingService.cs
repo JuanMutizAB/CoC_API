@@ -56,16 +56,20 @@ public sealed class LinkedInPublishingService(
         var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
         var now = DateTimeOffset.UtcNow;
 
-        var dueCampaignIds = await db.Campaigns
+        var dueCandidates = await db.Campaigns
             .AsNoTracking()
             .Where(campaign =>
-                campaign.Type == CampaignType.LinkedIn
-                && (campaign.Status == CampaignStatus.Scheduled || campaign.Status == CampaignStatus.Approved)
+                (campaign.Status == CampaignStatus.Scheduled || campaign.Status == CampaignStatus.Approved)
                 && campaign.PublicationDate <= now
                 && campaign.LinkedInPostId == null)
             .OrderBy(campaign => campaign.PublicationDate)
-            .Select(campaign => campaign.Id)
+            .Select(campaign => new { campaign.Id, campaign.Types })
             .ToListAsync(cancellationToken);
+
+        var dueCampaignIds = dueCandidates
+            .Where(campaign => campaign.Types.Contains(CampaignType.LinkedIn))
+            .Select(campaign => campaign.Id)
+            .ToList();
 
         foreach (var campaignId in dueCampaignIds)
             await PublishCampaignAsync(campaignId, now, cancellationToken);
@@ -82,7 +86,6 @@ public sealed class LinkedInPublishingService(
         var claimed = await db.Campaigns
             .Where(campaign =>
                 campaign.Id == campaignId
-                && campaign.Type == CampaignType.LinkedIn
                 && (campaign.Status == CampaignStatus.Scheduled || campaign.Status == CampaignStatus.Approved)
                 && campaign.PublicationDate <= now
                 && campaign.LinkedInPostId == null)
@@ -96,6 +99,8 @@ public sealed class LinkedInPublishingService(
         var campaignToPublish = await db.Campaigns.SingleAsync(
             campaign => campaign.Id == campaignId,
             cancellationToken);
+        if (!campaignToPublish.Types.Contains(CampaignType.LinkedIn))
+            return;
 
         try
         {

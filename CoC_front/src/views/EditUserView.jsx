@@ -11,6 +11,8 @@ export default function EditUserView() {
   const {
     id,
     user,
+    isLoading,
+    loadError,
     name,
     setName,
     email,
@@ -27,9 +29,29 @@ export default function EditUserView() {
     errors,
     actionMessage,
     actionType,
+    isSubmitting,
     handleSubmit,
     goBackToAccounts,
   } = useEditUserController();
+
+  if (isLoading) {
+    return (
+      <main className="app-page edit-user-page">
+        <PageHeader title="Edit User" />
+        <section
+          className="content-card edit-user-card"
+          aria-labelledby="edit-user-title"
+        >
+          <div className="section-heading">
+            <div>
+              <h1 id="edit-user-title">Edit User</h1>
+              <p>Loading user details...</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   if (!user) {
     return (
@@ -55,7 +77,7 @@ export default function EditUserView() {
           <div className="section-heading">
             <div>
               <h1 id="edit-user-title">User not found</h1>
-              <p>The requested account (ID {id}) could not be found.</p>
+              <p>{loadError || `The requested account (ID ${id}) could not be found.`}</p>
             </div>
           </div>
         </section>
@@ -92,7 +114,6 @@ export default function EditUserView() {
               Editing {user.name} (ID {user.id})
             </p>
           </div>
-          <span className="demo-badge">Demo data</span>
         </div>
 
         <form
@@ -219,11 +240,11 @@ export default function EditUserView() {
           </div>
 
           <div className="form-actions">
-            <button className="primary-button" type="submit">
+            <button className="primary-button" type="submit" disabled={isSubmitting}>
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M5 12l5 5L20 7" />
               </svg>
-              <span>Save changes</span>
+              <span>{isSubmitting ? "Saving..." : "Save changes"}</span>
             </button>
           </div>
 
