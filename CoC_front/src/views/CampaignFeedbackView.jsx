@@ -3,10 +3,12 @@ import { useCampaignFeedbackController } from "../controllers/useCampaignFeedbac
 import "./CampaignFeedbackView.css";
 
 /**
- * Campaign feedback view using Reason (Motivo) enum options from campaignModel.
+ * Campaign feedback view supporting both Send-for-change and Cancel-campaign flows.
  */
 export default function CampaignFeedbackView() {
   const {
+    campaign,
+    isCancelMode,
     reasons,
     reason,
     setReason,
@@ -17,6 +19,14 @@ export default function CampaignFeedbackView() {
     handleSubmit,
     goBackToCampaign,
   } = useCampaignFeedbackController();
+
+  const subtitle = isCancelMode
+    ? campaign
+      ? `Provide the reason for canceling "${campaign.name}".`
+      : "Provide the reason for canceling this campaign."
+    : campaign
+      ? `Share feedback for "${campaign.name}".`
+      : "Share feedback about this campaign.";
 
   return (
     <main className="app-page feedback-page">
@@ -29,7 +39,7 @@ export default function CampaignFeedbackView() {
         <div className="section-heading">
           <div>
             <h1 id="feedback-title">Campaign Feedback</h1>
-            <p>Share feedback about this campaign.</p>
+            <p>{subtitle}</p>
           </div>
           <button
             className="back-button"
@@ -44,6 +54,7 @@ export default function CampaignFeedbackView() {
           id="feedback-form"
           className="feedback-form"
           onSubmit={handleSubmit}
+          noValidate
         >
           <div className="feedback-layout">
             <div className="form-field">
@@ -72,9 +83,14 @@ export default function CampaignFeedbackView() {
                 id="Feedback-description"
                 name="Feedback"
                 rows={4}
-                placeholder="Describe the issue or suggestion"
+                placeholder={
+                  isCancelMode
+                    ? "Explain the reason for canceling this campaign"
+                    : "Describe the issue or suggestion"
+                }
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}
+                required
               />
             </div>
           </div>

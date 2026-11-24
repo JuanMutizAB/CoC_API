@@ -81,3 +81,17 @@ export function validatePassword(password, { required = false } = {}) {
   }
   return "";
 }
+
+/**
+ * Validates an optional http(s) image URL.
+ */
+export function validateImageUrl(url) {
+  const val = String(url || "").trim();
+  if (!val) {
+    return "";
+  }
+  if (!/^https?:\/\/\S+$/i.test(val)) {
+    return "Image URL must be a valid http(s) URL.";
+  }
+  return "";
+}

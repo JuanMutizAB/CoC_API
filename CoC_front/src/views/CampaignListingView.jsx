@@ -10,6 +10,7 @@ import "./CampaignListingView.css";
 export default function CampaignListingView() {
   const {
     visibleCampaigns,
+    statusMessage,
     nameFilter,
     setNameFilter,
     statusFilter,
@@ -292,6 +293,9 @@ export default function CampaignListingView() {
             </tbody>
           </table>
         </div>
+        <p className="action-message" id="action-message" role="status" aria-live="polite">
+          {statusMessage}
+        </p>
       </section>
     </main>
   );

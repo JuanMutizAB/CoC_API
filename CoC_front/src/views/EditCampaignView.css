@@ -6,6 +6,13 @@
   margin: 8px 0 28px;
 }
 
+.edit-campaign-page .heading-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
 .edit-campaign-page .heading-actions {
   display: flex;
   flex-wrap: wrap;
@@ -13,6 +20,140 @@
   gap: 12px;
   margin-left: auto;
 }
+
+/* ── Status pills ── */
+
+.edit-campaign-page .status-pill {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.edit-campaign-page .status-pill--new {
+  background-color: #e0edff;
+  color: #0256d0;
+}
+
+.edit-campaign-page .status-pill--approved {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.edit-campaign-page .status-pill--inreview {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.edit-campaign-page .status-pill--scheduled {
+  background-color: #ede9fe;
+  color: #6d28d9;
+}
+
+.edit-campaign-page .status-pill--forchange {
+  background-color: #ffedd5;
+  color: #c2410c;
+}
+
+.edit-campaign-page .status-pill--closed {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.edit-campaign-page .status-pill--sending {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.edit-campaign-page .status-pill--canceled,
+.edit-campaign-page .status-pill--failed {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ── ForChange Received Feedback Banner ── */
+
+.edit-campaign-page .for-change-feedback {
+  margin-bottom: 26px;
+  padding: 20px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+}
+
+.edit-campaign-page .for-change-feedback__title {
+  margin: 0 0 14px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #9a3412;
+}
+
+.edit-campaign-page .for-change-feedback__grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  gap: 16px 20px;
+  align-items: start;
+}
+
+.edit-campaign-page .for-change-feedback__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edit-campaign-page .for-change-feedback__field label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7c2d12;
+}
+
+.edit-campaign-page .for-change-feedback__field input,
+.edit-campaign-page .for-change-feedback__field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #fdba74;
+  border-radius: 0;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.edit-campaign-page .for-change-feedback--canceled {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.edit-campaign-page .for-change-feedback--canceled .for-change-feedback__title {
+  color: #991b1b;
+}
+
+.edit-campaign-page .for-change-feedback--canceled .for-change-feedback__field label {
+  color: #7f1d1d;
+}
+
+.edit-campaign-page .for-change-feedback--canceled .for-change-feedback__field input,
+.edit-campaign-page .for-change-feedback--canceled .for-change-feedback__field textarea {
+  border-color: #fca5a5;
+}
+
+.edit-campaign-page .for-change-feedback__field textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.edit-campaign-page .form-field input:disabled,
+.edit-campaign-page .form-field textarea:disabled,
+.edit-campaign-page .form-field select:disabled {
+  background: #f8fafc;
+  color: var(--ink);
+  cursor: default;
+  opacity: 1;
+}
+
+/* ── Campaign Form ── */
 
 .edit-campaign-page .campaign-form {
   padding-bottom: 12px;
@@ -75,29 +216,14 @@
   box-shadow: 0 0 0 3px rgba(3, 12, 239, 0.12);
 }
 
-.edit-campaign-page .form-field input[type="file"] {
-  min-height: auto;
-  padding: 10px 12px;
+.edit-campaign-page .form-field input.invalid,
+.edit-campaign-page .form-field textarea.invalid,
+.edit-campaign-page .form-field select.invalid {
+  border-color: #c93636;
 }
 
-.edit-campaign-page .form-field input[type="file"]::file-selector-button {
-  min-height: 34px;
-  margin-right: 12px;
-  padding: 0 12px;
-  border: 1px solid #ccd5e3;
-  border-radius: 0;
-  background: var(--surface);
-  color: var(--askblue-blue);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.edit-campaign-page .form-field input[type="file"]::file-selector-button:hover {
-  border-color: var(--askblue-blue);
-  background: #f3f6ff;
+.edit-campaign-page input[type="date"] {
+  accent-color: var(--askblue-blue);
 }
 
 .edit-campaign-page input[type="date"]::-webkit-calendar-picker-indicator {
@@ -128,14 +254,78 @@
   font-size: 12px;
 }
 
+.edit-campaign-page .error-message {
+  margin-top: 0;
+}
+
 .edit-campaign-page .form-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   margin-top: 30px;
   padding-top: 24px;
   border-top: 1px solid var(--line);
+}
+
+.edit-campaign-page .workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.edit-campaign-page .submit-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.edit-campaign-page .workflow-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.edit-campaign-page .approve-button {
+  border: 1px solid #15803d;
+  background: #15803d;
+  color: #ffffff;
+}
+
+.edit-campaign-page .approve-button:hover {
+  background: #166534;
+  border-color: #166534;
+}
+
+.edit-campaign-page .send-change-button {
+  border: 1px solid #d97706;
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.edit-campaign-page .send-change-button:hover {
+  background: #fef3c7;
+  border-color: #b45309;
+}
+
+.edit-campaign-page .cancel-campaign-button {
+  border: 1px solid #e2b9b9;
+  background: #ffffff;
+  color: #a52b2b;
+}
+
+.edit-campaign-page .cancel-campaign-button:hover {
+  border-color: #a52b2b;
+  background: #fff3f3;
 }
 
 .edit-campaign-page #form-status {
@@ -177,8 +367,10 @@
     min-height: 120px;
   }
 
-  .edit-campaign-page .form-field input[type="file"] {
-    min-height: auto;
+  .edit-campaign-page .workflow-button {
+    min-height: 54px;
+    padding: 0 22px;
+    font-size: 16px;
   }
 
   .edit-campaign-page .primary-button {
@@ -205,6 +397,10 @@
     margin-left: 0;
   }
 
+  .edit-campaign-page .for-change-feedback__grid {
+    grid-template-columns: 1fr;
+  }
+
   .edit-campaign-page .form-grid {
     grid-template-columns: 1fr;
     gap: 18px;
@@ -219,6 +415,15 @@
     flex-direction: column-reverse;
   }
 
+  .edit-campaign-page .workflow-actions,
+  .edit-campaign-page .submit-actions {
+    width: 100%;
+    margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .edit-campaign-page .workflow-button,
   .edit-campaign-page .primary-button {
     width: 100%;
   }
