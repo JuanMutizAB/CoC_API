@@ -59,7 +59,7 @@ dotnet ef database drop --force
 dotnet ef database update
 ```
 
-Isto recria `Cockpit_of_Comms` com o esquema final, incluindo sessões e publicação Instagram.
+Isto recria `Cockpit_of_Comms` com o esquema final, incluindo sessões e publicação Instagram e LinkedIn.
 
 ### 4. Correr a API
 
@@ -83,13 +83,27 @@ Cria uma campanha `Instagram` com uma imagem HTTPS publicamente acessível e uma
 
 Para testar os pedidos de exemplo, usa o ficheiro `CoC_API/CoC_API.http`.
 
+### Publicação no LinkedIn
+
+A publicação usa um token OAuth de utilizador com a permissão `w_member_social`, autorizado pela LinkedIn App. Configura os segredos locais (não os guardes no `appsettings.json`):
+
+```bash
+dotnet user-secrets set "LinkedIn:AccessToken" "<access-token>" --project CoC_API/CoC_API.csproj
+dotnet user-secrets set "LinkedIn:PersonUrn" "urn:li:person:<member-id>" --project CoC_API/CoC_API.csproj
+dotnet user-secrets set "LinkedIn:ApiVersion" "202611" --project CoC_API/CoC_API.csproj
+```
+
+O token tem de ter autorização para publicar no perfil pessoal configurado; o membro da LinkedIn App também tem de ter acesso ao produto/API de Community Management. O token é gerado pelo fluxo OAuth da LinkedIn fora desta API e pode expirar, pelo que terá de ser renovado. A integração publica posts de texto e imagens JPEG, PNG ou GIF a partir de URLs HTTPS públicas; o acesso ao endereço da imagem é feito pela API.
+
+Cria uma campanha `LinkedIn` com uma data/hora UTC futura. Se o criador tiver a característica `isAprovando`, um utilizador `isAprovador` tem de aprová-la em `PUT /campaigns/{id}/review/approve`. O worker verifica a base de dados a cada 15 segundos. Consulta `GET /campaigns/{id}` para ver o estado: `Closed` significa publicada e `Failed` indica erro. Não há retry automático. Os testes usam HTTP simulado e não publicam conteúdo real.
+
 ### Testes automatizados
 
 ```bash
 dotnet test CoC_API.Tests/CoC_API.Tests.csproj
 ```
 
-Os testes cobrem revisão, aprovação, rejeição, cancelamento, isolamento de campanhas e o worker Instagram com respostas HTTP simuladas; não fazem publicações reais.
+Os testes cobrem revisão, aprovação, rejeição, cancelamento, isolamento de campanhas e os workers Instagram e LinkedIn com respostas HTTP simuladas; não fazem publicações reais.
 
 ## Endpoints
 
