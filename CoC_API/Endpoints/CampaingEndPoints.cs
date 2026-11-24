@@ -67,7 +67,9 @@ public static class CampaingEndPoints
                     ? CampaignStatus.InReview
                     : publicationStatus;
                 var types = request.Types ?? new List<CampaignType>();
-                if ((types.Contains(CampaignType.Instagram) || types.Contains(CampaignType.LinkedIn))
+                if ((types.Contains(CampaignType.Instagram)
+                     || types.Contains(CampaignType.LinkedIn)
+                     || types.Contains(CampaignType.Facebook))
                     && status == CampaignStatus.Sending)
                     status = CampaignStatus.Scheduled;
 
@@ -150,7 +152,9 @@ public static class CampaingEndPoints
                     status = Campaign.ResolvePublicationStatus(publicationDate, now);
                 }
 
-                if ((types.Contains(CampaignType.Instagram) || types.Contains(CampaignType.LinkedIn))
+                if ((types.Contains(CampaignType.Instagram)
+                     || types.Contains(CampaignType.LinkedIn)
+                     || types.Contains(CampaignType.Facebook))
                     && status == CampaignStatus.Sending)
                     status = CampaignStatus.Scheduled;
 

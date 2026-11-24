@@ -110,6 +110,8 @@ namespace CoC_API.Models
 
         public string? LinkedInPostId { get; private set; }
 
+        public string? FacebookPostId { get; private set; }
+
         public int UserId
         {
             get => userId;
@@ -184,7 +186,9 @@ namespace CoC_API.Models
                 throw new InvalidOperationException("Only campaigns in review can be approved.");
 
             var publicationStatus = ResolvePublicationStatus(PublicationDate, DateTimeOffset.UtcNow);
-            Status = Types.Contains(CampaignType.Instagram) || Types.Contains(CampaignType.LinkedIn)
+            Status = Types.Contains(CampaignType.Instagram)
+                || Types.Contains(CampaignType.LinkedIn)
+                || Types.Contains(CampaignType.Facebook)
                 ? CampaignStatus.Approved
                 : publicationStatus;
         }
@@ -286,11 +290,32 @@ namespace CoC_API.Models
                 && string.IsNullOrWhiteSpace(InstagramMediaId);
             var linkedInPending = Types.Contains(CampaignType.LinkedIn)
                 && string.IsNullOrWhiteSpace(LinkedInPostId);
+            var facebookPending = Types.Contains(CampaignType.Facebook)
+                && string.IsNullOrWhiteSpace(FacebookPostId);
 
-            return !instagramPending && !linkedInPending;
+            return !instagramPending && !linkedInPending && !facebookPending;
         }
 
         public void FailLinkedInPublication()
+        {
+            if (Status == CampaignStatus.Sending)
+                Status = CampaignStatus.Failed;
+        }
+
+        public void CompleteFacebookPublication(string postId)
+        {
+            if (Status != CampaignStatus.Sending)
+                throw new InvalidOperationException("The campaign is not being published.");
+            if (string.IsNullOrWhiteSpace(postId))
+                throw new ArgumentException("Facebook post ID cannot be empty.", nameof(postId));
+
+            FacebookPostId = postId;
+            Status = AreAllPublishingChannelsCompleted()
+                ? CampaignStatus.Closed
+                : CampaignStatus.Scheduled;
+        }
+
+        public void FailFacebookPublication()
         {
             if (Status == CampaignStatus.Sending)
                 Status = CampaignStatus.Failed;
