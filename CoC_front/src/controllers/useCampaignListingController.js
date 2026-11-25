@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   CampaignStatus,
@@ -49,32 +49,43 @@ export function useCampaignListingController() {
     }
   }, [location.pathname, location.state, navigate]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
+
+  const loadCampaigns = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setLoadError("");
 
-    fetchCampaigns()
-      .then((list) => {
-        if (!cancelled) {
-          setCampaigns(list);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setLoadError(error?.message || "Could not load campaigns.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      });
+    try {
+      const list = await fetchCampaigns();
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setCampaigns(list);
+      }
+    } catch (error) {
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setLoadError(error?.message || "Could not load campaigns.");
+      }
+    } finally {
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    loadCampaigns();
 
     return () => {
-      cancelled = true;
+      isMountedRef.current = false;
     };
-  }, []);
+  }, [loadCampaigns]);
+
+  const handleRefresh = useCallback(() => {
+    setStatusMessage("");
+    loadCampaigns();
+  }, [loadCampaigns]);
 
   const handleApplyFilter = (e) => {
     if (e && typeof e.preventDefault === "function") {
@@ -218,6 +229,7 @@ export function useCampaignListingController() {
     setDateFilter,
     handleApplyFilter,
     handleCleanSearch,
+    handleRefresh,
     sortField,
     sortDirection,
     handleSort,
