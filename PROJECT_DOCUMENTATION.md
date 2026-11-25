@@ -168,6 +168,9 @@ Ao longo do desenvolvimento foram identificados e corrigidos os seguintes proble
 9. **Eliminação da duplicação nos 4 `PublishingService` (Strategy Pattern):**
    - **Problema:** `InstagramPublishingService`, `LinkedInPublishingService`, `FacebookPublishingService` e `EmailPublishingService` duplicavam a mesma lógica de polling, claim atómico e tratamento de falhas.
    - **Solução:** criada a interface `ICampaignChannelPublisher`, as estratégias em `ChannelPublishers.cs` (`InstagramChannelPublisher`, `LinkedInChannelPublisher`, `FacebookChannelPublisher`, `EmailChannelPublisher`) e o orquestrador único `CampaignPublishingService.cs` registado em `Program.cs`.
+10. **Hashing seguro de passwords com `PasswordHasher<User>` (PBKDF2 com salt):**
+    - **Problema:** `User.HashPassword` usava SHA-256 simples sem salt, vulnerável a força bruta e rainbow tables.
+    - **Solução:** substituído por `PasswordHasher<User>` (`Microsoft.AspNetCore.Identity`) em `CoC_API/Models/User.cs`, com migração transparente de hashes SHA-256 legados para PBKDF2 no momento do login em `AuthEndpoints.cs`.
 
 ---
 
@@ -176,7 +179,6 @@ Ao longo do desenvolvimento foram identificados e corrigidos os seguintes proble
 ### 7.1. Segurança (Prioridade Crítica)
 | Problema | Onde está | Solução Recomendada |
 | :--- | :--- | :--- |
-| **Hashing de passwords com SHA-256 sem salt** | `CoC_API/Models/User.cs` (`HashPassword`) | Substituir imediatamente por `PasswordHasher<User>` (PBKDF2 com salt aleatório) ou Argon2id/BCrypt. |
 | **`GET /users` e `GET /users/{id}` acessíveis a não-Admins** | `CoC_API/Endpoints/UserEndpoints.cs` | Adicionar `.RequireAuthorization(p => p.RequireRole(nameof(UserCaracteristics.Admin)))` em ambos os endpoints. |
 | **Sem Rate Limiting em `/login`** | `CoC_API/Endpoints/AuthEndpoints.cs` | Configurar `AddRateLimiter()` do ASP.NET Core em `/login` e lockout temporário contra força bruta. |
 | **Possível SSRF em `ImageUrl`** | `CoC_API/Integrations/` & `Campaign.cs` | Validar HTTPS e bloquear IPs privados/loopback/link-local (`127.0.0.1`, `169.254.169.254`, etc.) no back-end. |

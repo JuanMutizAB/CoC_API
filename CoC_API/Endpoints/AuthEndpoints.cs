@@ -33,6 +33,9 @@ public static class AuthEndpoints
                 return Results.Json(new { erro = "Invalid credentials." }, statusCode: StatusCodes.Status401Unauthorized);
             }
 
+            if (db.ChangeTracker.HasChanges())
+                await db.SaveChangesAsync(context.RequestAborted);
+
             var sessionId = await sessions.CreateSessionAsync(user.id, context.RequestAborted);
             var principal = UserClaimsPrincipalFactory.Create(user, sessionId);
             await context.SignInAsync(
