@@ -28,6 +28,7 @@ export default function CampaignListingView() {
     setDateFilter,
     handleApplyFilter,
     handleCleanSearch,
+    handleRefresh,
     sortField,
     sortDirection,
     handleSort,
@@ -155,6 +156,24 @@ export default function CampaignListingView() {
           </div>
 
           <div className="toolbar-right">
+            <button
+              className="refresh-btn"
+              type="button"
+              onClick={handleRefresh}
+              disabled={isLoading}
+              aria-label="Refresh campaigns"
+              title="Refresh campaigns"
+            >
+              <svg
+                className={isLoading ? "refresh-icon spinning" : "refresh-icon"}
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+              <span>Refresh</span>
+            </button>
             <button
               className="secondary-btn clean-search-btn"
               type="button"
