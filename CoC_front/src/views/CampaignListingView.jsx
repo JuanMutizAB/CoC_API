@@ -36,6 +36,7 @@ export default function CampaignListingView() {
     getSortIndicator,
     goToCreate,
     goToEdit,
+    goToDuplicate,
     goToAccounts,
     statusOptions,
     typeOptions,
@@ -289,24 +290,31 @@ export default function CampaignListingView() {
                     </span>
                   </button>
                 </th>
+                {isAdmin && (
+                  <th
+                    scope="col"
+                    className="campaign-actions-header"
+                    aria-label="Actions"
+                  />
+                )}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td className="empty-state" colSpan={6}>
+                  <td className="empty-state" colSpan={isAdmin ? 7 : 6}>
                     Loading campaigns...
                   </td>
                 </tr>
               ) : loadError ? (
                 <tr>
-                  <td className="empty-state" colSpan={6}>
+                  <td className="empty-state" colSpan={isAdmin ? 7 : 6}>
                     {loadError}
                   </td>
                 </tr>
               ) : visibleCampaigns.length === 0 ? (
                 <tr>
-                  <td className="empty-state" colSpan={6}>
+                  <td className="empty-state" colSpan={isAdmin ? 7 : 6}>
                     No campaigns match your search.
                   </td>
                 </tr>
@@ -353,6 +361,22 @@ export default function CampaignListingView() {
                           ))}
                         </div>
                       </td>
+                      {isAdmin && (
+                        <td className="campaign-actions-cell">
+                          <button
+                            type="button"
+                            className="duplicate-campaign-btn"
+                            onClick={() => goToDuplicate(camp)}
+                            aria-label={`Duplicate ${camp.name}`}
+                            title={`Duplicate ${camp.name}`}
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <rect x="8" y="3" width="13" height="15" rx="2.5" />
+                              <path d="M5 7v11.5A2.5 2.5 0 0 0 7.5 21H17" />
+                            </svg>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

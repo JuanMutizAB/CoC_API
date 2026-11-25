@@ -320,6 +320,51 @@
   font-size: 12px;
 }
 
+.campaign-actions-header {
+  width: 48px;
+}
+
+.campaign-actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.duplicate-campaign-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.duplicate-campaign-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.duplicate-campaign-btn:hover {
+  background-color: #eef2ff;
+  color: var(--askblue-blue);
+  border-color: #c7d2fe;
+}
+
+.duplicate-campaign-btn:focus-visible {
+  outline: 2px solid var(--askblue-blue);
+  outline-offset: 2px;
+}
+
 /* ── Status Pills ── */
 
 .status-pill {
