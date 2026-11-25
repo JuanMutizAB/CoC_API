@@ -31,19 +31,9 @@ public static class CampaingEndPoints
                     campaign.Status == CampaignStatus.InReview
                     || campaign.Status == CampaignStatus.ForChange)
                 .ToListAsync();
-            var reviewOwnerIds = reviewCampaigns
-                .Select(campaign => campaign.UserId)
-                .Distinct()
-                .ToArray();
-            var approvingOwnerIds = (await db.Users
-                    .Where(candidate => reviewOwnerIds.Contains(candidate.id))
-                    .ToListAsync())
-                .Where(candidate => candidate.HasCharacteristic(UserCaracteristics.isAprovando))
-                .Select(candidate => candidate.id)
-                .ToHashSet();
 
             var visibleCampaigns = ownCampaigns
-                .Concat(reviewCampaigns.Where(campaign => approvingOwnerIds.Contains(campaign.UserId)))
+                .Concat(reviewCampaigns)
                 .DistinctBy(campaign => campaign.Id)
                 .ToList();
 
@@ -83,7 +73,8 @@ public static class CampaingEndPoints
                     request.PublicationDate,
                     request.ImageUrl,
                     user.id,
-                    now);
+                    now,
+                    request.EmailRecipients);
 
                 db.Campaigns.Add(campaign);
                 await db.SaveChangesAsync();
@@ -115,7 +106,7 @@ public static class CampaingEndPoints
                 && await CanViewCampaignAsync(campaign, user, db);
             if (campaign.UserId != user.id && !isAdmin && !canAprovadorEditReviewable)
                 return Results.Forbid();
-            if (campaign.Status is CampaignStatus.Canceled or CampaignStatus.Closed)
+            if (campaign.Status is CampaignStatus.Canceled or CampaignStatus.Closed or CampaignStatus.Sending or CampaignStatus.Failed)
                 return Results.Conflict(new { erro = "This campaign can no longer be edited." });
             if (campaign.Status == CampaignStatus.ForChange
                 && !isAdmin
@@ -136,6 +127,18 @@ public static class CampaingEndPoints
                 var imageUrl = request.ImageUrl is null
                     ? campaign.ImageUrl
                     : string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl;
+                var emailRecipients = request.EmailRecipients is null
+                    ? campaign.EmailRecipients
+                    : string.IsNullOrWhiteSpace(request.EmailRecipients) ? null : request.EmailRecipients;
+
+                if (campaign.Status is CampaignStatus.InReview or CampaignStatus.ForChange
+                    && Campaign.IsPastMinute(publicationDate, now))
+                {
+                    if (campaign.PublicationDate <= now - TimeSpan.FromHours(24))
+                        return Results.Conflict(new { erro = "Campaign review period has expired." });
+
+                    publicationDate = now;
+                }
 
                 var status = campaign.Status;
                 if (campaign.Status == CampaignStatus.ForChange)
@@ -168,7 +171,8 @@ public static class CampaingEndPoints
                     status,
                     publicationDate,
                     imageUrl,
-                    now);
+                    now,
+                    emailRecipients);
 
                 await db.SaveChangesAsync();
                 return Results.Ok(campaign);
@@ -372,29 +376,22 @@ public static class CampaingEndPoints
             : null;
     }
 
-    private static async Task<bool> CanViewCampaignAsync(
+    private static Task<bool> CanViewCampaignAsync(
         Campaign campaign,
         User user,
         CoC_DbContext db)
     {
         if (user.HasCharacteristic(UserCaracteristics.Admin) || campaign.UserId == user.id)
-            return true;
+            return Task.FromResult(true);
 
-        if (!user.HasCharacteristic(UserCaracteristics.isAprovador)
-            || campaign.Status is not (CampaignStatus.InReview or CampaignStatus.ForChange))
-            return false;
-
-        var owner = await db.Users.FindAsync(campaign.UserId);
-        return owner is not null && owner.HasCharacteristic(UserCaracteristics.isAprovando);
+        return Task.FromResult(
+            user.HasCharacteristic(UserCaracteristics.isAprovador)
+            && campaign.Status is CampaignStatus.InReview or CampaignStatus.ForChange);
     }
 
-    private static async Task<bool> IsReviewableCampaignAsync(Campaign campaign, CoC_DbContext db)
+    private static Task<bool> IsReviewableCampaignAsync(Campaign campaign, CoC_DbContext db)
     {
-        if (campaign.Status != CampaignStatus.InReview)
-            return false;
-
-        var owner = await db.Users.FindAsync(campaign.UserId);
-        return owner is not null && owner.HasCharacteristic(UserCaracteristics.isAprovando);
+        return Task.FromResult(campaign.Status == CampaignStatus.InReview);
     }
 
     private static string FormatErrorMessage(Exception ex)

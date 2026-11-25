@@ -11,6 +11,7 @@ import {
   formatPublishTimeInput,
   isValidPublishTime,
   normalizeCampaignTypes,
+  validateEmailRecipients,
 } from "../models/campaignModel";
 import { validateImageUrl } from "../models/validationModel";
 import { useAuth } from "./AuthController";
@@ -21,6 +22,7 @@ const INITIAL_ERRORS = {
   description: "",
   modelMsg: "",
   imageUrl: "",
+  emailRecipients: "",
   publishDate: "",
   publishTime: "",
 };
@@ -41,6 +43,7 @@ export function useEditCampaignController({ readOnly = false } = {}) {
   const [description, setDescription] = useState("");
   const [modelMsg, setModelMsg] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [emailRecipients, setEmailRecipients] = useState("");
   const [publishDate, setPublishDate] = useState("");
   const [publishTime, setPublishTime] = useState("");
   const [status, setStatus] = useState(CampaignStatus.New);
@@ -77,6 +80,7 @@ export function useEditCampaignController({ readOnly = false } = {}) {
         setDescription(fresh.description || "");
         setModelMsg(fresh.modelMsg || "");
         setImageUrl(fresh.imageUrl || "");
+        setEmailRecipients(fresh.emailRecipients || "");
         setPublishDate(initDate);
         setPublishTime(initTime);
         setStatus(fresh.status || CampaignStatus.New);
@@ -105,9 +109,12 @@ export function useEditCampaignController({ readOnly = false } = {}) {
 
   const isCanceled = status === CampaignStatus.Canceled;
   const isClosed = status === CampaignStatus.Closed;
+  const isSending = status === CampaignStatus.Sending;
+  const isFailed = status === CampaignStatus.Failed;
   const isForChange = status === CampaignStatus.ForChange;
   const isInReview = status === CampaignStatus.InReview;
-  const isDetailsMode = Boolean(readOnly) || isCanceled || isClosed;
+  const isDetailsMode =
+    Boolean(readOnly) || isCanceled || isClosed || isSending || isFailed;
   const isOwner = Boolean(
     currentUser && campaign && Number(campaign.userId) === Number(currentUser.id)
   );
@@ -159,6 +166,9 @@ export function useEditCampaignController({ readOnly = false } = {}) {
         "Introduza um horário válido entre 00:00 e 23:59.";
     }
     nextErrors.imageUrl = validateImageUrl(imageUrl);
+    if (types.includes(CampaignType.Email)) {
+      nextErrors.emailRecipients = validateEmailRecipients(emailRecipients);
+    }
 
     if (Object.values(nextErrors).some(Boolean)) {
       setErrors(nextErrors);
@@ -172,6 +182,7 @@ export function useEditCampaignController({ readOnly = false } = {}) {
     setStatusRole("status");
 
     const updatedName = name.trim();
+    const includesEmail = types.includes(CampaignType.Email);
     setIsSubmitting(true);
     try {
       const updated = await editCampaignApi(campaign.id, {
@@ -180,6 +191,7 @@ export function useEditCampaignController({ readOnly = false } = {}) {
         modelMsg: modelMsg.trim(),
         types,
         imageUrl: imageUrl.trim(),
+        emailRecipients: includesEmail ? emailRecipients.trim() : "",
         publicationDate: combineDateAndTime(publishDate, publishTime),
       });
 
@@ -262,6 +274,11 @@ export function useEditCampaignController({ readOnly = false } = {}) {
     setModelMsg,
     imageUrl,
     setImageUrl,
+    emailRecipients,
+    setEmailRecipients,
+    showEmailRecipients: types.includes(CampaignType.Email),
+    showFacebookOnlyImageNotice:
+      types.length === 1 && types[0] === CampaignType.Facebook,
     publishDate,
     setPublishDate,
     publishTime,

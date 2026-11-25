@@ -200,7 +200,9 @@ export function useCampaignListingController() {
   const goToEdit = (campaign) => {
     if (
       campaign.status === CampaignStatus.Canceled ||
-      campaign.status === CampaignStatus.Closed
+      campaign.status === CampaignStatus.Closed ||
+      campaign.status === CampaignStatus.Sending ||
+      campaign.status === CampaignStatus.Failed
     ) {
       navigate(`/campaigns/${campaign.id}/details`);
     } else {

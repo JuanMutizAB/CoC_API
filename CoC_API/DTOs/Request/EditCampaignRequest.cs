@@ -15,6 +15,7 @@ public record EditCampaignRequest
        string? ModelMsg = null,
        List<CampaignType>? Types = null,
        DateTimeOffset? PublicationDate = null,
-       string? ImageUrl = null
+       string? ImageUrl = null,
+       string? EmailRecipients = null
 );
 

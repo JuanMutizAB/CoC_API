@@ -9,5 +9,6 @@ public record CreateCampaignRequest
     string ModelMsg,
     List<CampaignType> Types,
     DateTimeOffset PublicationDate,
-    string? ImageUrl
+    string? ImageUrl,
+    string? EmailRecipients = null
 );

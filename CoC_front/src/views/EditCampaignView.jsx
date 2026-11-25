@@ -1,6 +1,7 @@
 import MultiSelectDropdown from "./components/MultiSelectDropdown";
 import PageHeader from "./components/PageHeader";
 import { useEditCampaignController } from "../controllers/useEditCampaignController";
+import { formatCampaignStatusLabel } from "../models/campaignModel";
 import "./EditCampaignView.css";
 
 /**
@@ -23,6 +24,10 @@ export default function EditCampaignView({ readOnly = false }) {
     setModelMsg,
     imageUrl,
     setImageUrl,
+    emailRecipients,
+    setEmailRecipients,
+    showEmailRecipients,
+    showFacebookOnlyImageNotice,
     publishDate,
     setPublishDate,
     publishTime,
@@ -126,7 +131,9 @@ export default function EditCampaignView({ readOnly = false }) {
               <h1 id="edit-campaign-title">
                 {isDetailsMode || !canEditFields ? "Campaign Details" : "Edit Campaign"}
               </h1>
-              <span className={statusClass}>{status}</span>
+              <span className={statusClass}>
+                {formatCampaignStatusLabel(status, campaign.publicationDate)}
+              </span>
             </div>
             <p>{subtitleText}</p>
           </div>
@@ -216,6 +223,34 @@ export default function EditCampaignView({ readOnly = false }) {
               )}
             </div>
 
+            {showEmailRecipients && (
+              <div className="form-field form-field--full">
+                <label htmlFor="campaign-email-recipients">Email Recipients</label>
+                <input
+                  type="text"
+                  id="campaign-email-recipients"
+                  name="emailRecipients"
+                  placeholder={
+                    fieldsDisabled
+                      ? "—"
+                      : "recipient1@example.com, recipient2@example.com"
+                  }
+                  value={emailRecipients}
+                  onChange={(e) => setEmailRecipients(e.target.value)}
+                  className={errors.emailRecipients ? "invalid" : undefined}
+                  disabled={fieldsDisabled}
+                />
+                {!fieldsDisabled && (
+                  <>
+                    <span className="field-hint">
+                      Separate multiple email addresses with commas or semicolons. Leave blank to use default server recipients.
+                    </span>
+                    <span className="error-message">{errors.emailRecipients}</span>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="form-field form-field--full">
               <label htmlFor="campaign-description">Description</label>
               <textarea
@@ -269,6 +304,11 @@ export default function EditCampaignView({ readOnly = false }) {
                   <span className="field-hint">
                     Optional. Provide the public URL of the campaign image.
                   </span>
+                  {showFacebookOnlyImageNotice && (
+                    <span className="field-warning" role="status">
+                      Aviso: se adicionar uma imagem, a publicação no Facebook será encaminhada para as Fotos em vez do Feed.
+                    </span>
+                  )}
                   <span className="error-message">{errors.imageUrl}</span>
                 </>
               )}

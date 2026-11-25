@@ -13,11 +13,17 @@ public sealed class EmailClient(EmailPublishingOptions options)
         if (!options.IsConfigured)
             throw new InvalidOperationException("Email publishing is not fully configured.");
 
+        var recipients = campaign.GetEmailRecipientList();
+        if (recipients.Count == 0)
+            recipients = options.RecipientList;
+        if (recipients.Count == 0)
+            throw new InvalidOperationException("Email campaign requires at least one recipient.");
+
         var message = new MimeMessage();
         message.From.Add(MailboxAddress.Parse(options.From!));
         // Os destinatários vão em BCC para não expor os endereços uns aos outros.
         message.To.Add(MailboxAddress.Parse(options.From!));
-        foreach (var recipient in options.RecipientList)
+        foreach (var recipient in recipients)
             message.Bcc.Add(MailboxAddress.Parse(recipient));
 
         message.MessageId = MimeKit.Utils.MimeUtils.GenerateMessageId();

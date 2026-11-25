@@ -81,6 +81,54 @@ export function formatCampaignDateTime(dateValue) {
 }
 
 /**
+ * Formats the display label for a campaign status, appending "(delayed)" visually
+ * when InReview or ForChange is within the 24-hour window past publicationDate.
+ */
+export function formatCampaignStatusLabel(status, publicationDate) {
+  if (
+    (status !== CampaignStatus.InReview &&
+      status !== CampaignStatus.ForChange) ||
+    !publicationDate
+  ) {
+    return status;
+  }
+
+  const pubTime = Date.parse(publicationDate);
+  if (Number.isNaN(pubTime)) {
+    return status;
+  }
+
+  const nowMs = Date.now();
+  const isPastMinute = Math.floor(nowMs / 60000) > Math.floor(pubTime / 60000);
+  const within24Hours = nowMs - pubTime < 24 * 60 * 60 * 1000;
+
+  return isPastMinute && within24Hours ? `${status} (delayed)` : status;
+}
+
+/**
+ * Validates a comma/semicolon-separated list of optional email recipients.
+ */
+export function validateEmailRecipients(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  const parts = raw
+    .split(/[;,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  for (const email of parts) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return `Invalid email address: ${email}`;
+    }
+  }
+
+  return "";
+}
+
+/**
  * Extracts local { publishDate: "YYYY-MM-DD", publishTime: "HH:mm" } from an ISO value.
  */
 export function extractDateAndTime(isoValue) {
@@ -176,6 +224,7 @@ export function normalizeCampaign(camp) {
     createdAt: camp.createdAt || camp.CreatedAt || null,
     publicationDate: camp.publicationDate || camp.PublicationDate || null,
     imageUrl: camp.imageUrl ?? camp.ImageUrl ?? camp.image ?? null,
+    emailRecipients: camp.emailRecipients ?? camp.EmailRecipients ?? "",
     userId: camp.userId ?? camp.UserId ?? null,
     motivo: normalizedMotivo,
     justificationText:
