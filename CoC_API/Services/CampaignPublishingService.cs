@@ -1,49 +1,45 @@
 using System.Data.Common;
-using System.Text.Json;
 using CoC_API.Context;
-using CoC_API.Integrations;
 using CoC_API.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace CoC_API.Services;
 
-public sealed class InstagramPublishingService(
+/// <summary>
+/// Unified background orchestrator that polls due campaigns and delegates
+/// channel-specific publishing to registered <see cref="ICampaignChannelPublisher"/> strategies.
+/// </summary>
+public sealed class CampaignPublishingService(
     IServiceScopeFactory scopeFactory,
-    InstagramGraphApiClient instagram,
-    InstagramPublishingOptions options,
-    ILogger<InstagramPublishingService> logger) : BackgroundService
+    IEnumerable<ICampaignChannelPublisher> publishers,
+    ILogger<CampaignPublishingService> logger) : BackgroundService
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (!options.IsConfigured)
-        {
-            if (options.HasAnyValue)
-                logger.LogError("Instagram publishing is disabled: configure the access token, Instagram user ID, and Graph API version.");
-            else
-                logger.LogWarning("Instagram publishing is disabled because its configuration is missing.");
+        var activePublishers = publishers
+            .Where(publisher => publisher.ValidateConfiguration(logger))
+            .ToList();
 
+        if (activePublishers.Count == 0)
             return;
-        }
-
-        if (!options.TryGetGraphApiVersion(out _))
-        {
-            logger.LogError("Instagram publishing is disabled: Graph API version must have the format vX.Y.");
-            return;
-        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
+            foreach (var publisher in activePublishers)
             {
-                await PublishDueCampaignsAsync(stoppingToken);
-            }
-            catch (Exception exception) when (exception is DbException or DbUpdateException)
-            {
-                logger.LogError(exception, "Could not check or update scheduled Instagram campaigns.");
+                try
+                {
+                    await PublishDueCampaignsAsync(publisher, stoppingToken);
+                }
+                catch (Exception exception) when (exception is DbException or DbUpdateException)
+                {
+                    logger.LogError(
+                        exception,
+                        "Could not check or update scheduled {Channel} campaigns.",
+                        publisher.Channel);
+                }
             }
 
             await Task.Delay(PollInterval, stoppingToken);
@@ -51,6 +47,14 @@ public sealed class InstagramPublishingService(
     }
 
     internal async Task PublishDueCampaignsAsync(CancellationToken cancellationToken)
+    {
+        foreach (var publisher in publishers)
+            await PublishDueCampaignsAsync(publisher, cancellationToken);
+    }
+
+    internal async Task PublishDueCampaignsAsync(
+        ICampaignChannelPublisher publisher,
+        CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
@@ -62,22 +66,23 @@ public sealed class InstagramPublishingService(
                 (campaign.Status == CampaignStatus.Scheduled
                  || campaign.Status == CampaignStatus.Approved
                  || campaign.Status == CampaignStatus.Sending)
-                && campaign.PublicationDate <= now
-                && campaign.InstagramMediaId == null)
+                && campaign.PublicationDate <= now)
+            .Where(publisher.PendingChannelFilter)
             .OrderBy(campaign => campaign.PublicationDate)
             .Select(campaign => new { campaign.Id, campaign.Types })
             .ToListAsync(cancellationToken);
 
         var dueCampaignIds = dueCandidates
-            .Where(campaign => campaign.Types.Contains(CampaignType.Instagram))
+            .Where(campaign => campaign.Types.Contains(publisher.Channel))
             .Select(campaign => campaign.Id)
             .ToList();
 
         foreach (var campaignId in dueCampaignIds)
-            await PublishCampaignAsync(campaignId, now, cancellationToken);
+            await PublishCampaignAsync(publisher, campaignId, now, cancellationToken);
     }
 
     private async Task PublishCampaignAsync(
+        ICampaignChannelPublisher publisher,
         Guid campaignId,
         DateTimeOffset now,
         CancellationToken cancellationToken)
@@ -91,8 +96,8 @@ public sealed class InstagramPublishingService(
                 && (campaign.Status == CampaignStatus.Scheduled
                     || campaign.Status == CampaignStatus.Approved
                     || campaign.Status == CampaignStatus.Sending)
-                && campaign.PublicationDate <= now
-                && campaign.InstagramMediaId == null)
+                && campaign.PublicationDate <= now)
+            .Where(publisher.PendingChannelFilter)
             .ExecuteUpdateAsync(
                 setters => setters.SetProperty(campaign => campaign.Status, CampaignStatus.Sending),
                 cancellationToken);
@@ -103,36 +108,31 @@ public sealed class InstagramPublishingService(
         var campaignToPublish = await db.Campaigns.SingleAsync(
             campaign => campaign.Id == campaignId,
             cancellationToken);
-        if (!campaignToPublish.Types.Contains(CampaignType.Instagram))
+        if (!campaignToPublish.Types.Contains(publisher.Channel))
             return;
 
         try
         {
-            var mediaId = await instagram.PublishImageAsync(campaignToPublish, cancellationToken);
-            campaignToPublish.CompleteInstagramPublication(mediaId);
+            var externalId = await publisher.PublishAsync(campaignToPublish, cancellationToken);
+            publisher.MarkPublished(campaignToPublish, externalId);
             await db.SaveChangesAsync(cancellationToken);
-            logger.LogInformation(
-                "Campaign {CampaignId} was published to Instagram as media {MediaId}.",
-                campaignId,
-                mediaId);
+            publisher.LogPublished(logger, campaignToPublish, externalId);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            campaignToPublish.FailInstagramPublication();
+            publisher.MarkFailed(campaignToPublish);
             await db.SaveChangesAsync(CancellationToken.None);
             throw;
         }
-        catch (Exception exception) when (
-            exception is HttpRequestException
-            or InvalidOperationException
-            or JsonException
-            or TimeoutException
-            or OperationCanceledException
-            or ArgumentException)
+        catch (Exception exception) when (publisher.IsHandledFailure(exception))
         {
-            campaignToPublish.FailInstagramPublication();
+            publisher.MarkFailed(campaignToPublish);
             await db.SaveChangesAsync(CancellationToken.None);
-            logger.LogError(exception, "Campaign {CampaignId} failed to publish to Instagram.", campaignId);
+            logger.LogError(
+                exception,
+                "Campaign {CampaignId} failed to publish to {Channel}.",
+                campaignId,
+                publisher.Channel);
         }
     }
 }

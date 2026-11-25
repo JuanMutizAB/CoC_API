@@ -8,13 +8,13 @@ namespace CoC_API.Models
 {
     public class User
     {
-        public int idValue;
-        public string nameValue = string.Empty;
-        public string emailValue = string.Empty;
-        public string passwordValue = string.Empty;
-        public DateOnly birthDateValue;
-        public string taxIdValue = string.Empty;
-        public List<UserCaracteristics> caracteristicsValue = new();
+        private int idValue;
+        private string nameValue = string.Empty;
+        private string emailValue = string.Empty;
+        private string passwordValue = string.Empty;
+        private DateOnly birthDateValue;
+        private string taxIdValue = string.Empty;
+        private List<UserCaracteristics> caracteristicsValue = new();
 
         public int id
         {
