@@ -3,11 +3,13 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Identity;
 
 namespace CoC_API.Models
 {
     public class User
     {
+        private static readonly PasswordHasher<User> PasswordHasher = new();
         private int idValue;
         private string nameValue = string.Empty;
         private string emailValue = string.Empty;
@@ -200,15 +202,42 @@ namespace CoC_API.Models
 
         public bool CheckPassword(string plainPassword)
         {
-            var attempt = System.Text.Encoding.UTF8.GetBytes(HashPassword(plainPassword));
-            var stored = System.Text.Encoding.UTF8.GetBytes(passwordValue);
-            return CryptographicOperations.FixedTimeEquals(attempt, stored);
+            if (string.IsNullOrEmpty(plainPassword) || string.IsNullOrEmpty(passwordValue))
+                return false;
+
+            if (IsLegacySha256Hex(passwordValue))
+            {
+                var attempt = System.Text.Encoding.UTF8.GetBytes(ComputeLegacySha256Hex(plainPassword));
+                var stored = System.Text.Encoding.UTF8.GetBytes(passwordValue.ToLowerInvariant());
+                if (!CryptographicOperations.FixedTimeEquals(attempt, stored))
+                    return false;
+
+                passwordValue = HashPassword(plainPassword);
+                return true;
+            }
+
+            var verification = PasswordHasher.VerifyHashedPassword(this, passwordValue, plainPassword);
+            if (verification == PasswordVerificationResult.SuccessRehashNeeded)
+            {
+                passwordValue = HashPassword(plainPassword);
+                return true;
+            }
+
+            return verification == PasswordVerificationResult.Success;
         }
 
         private string HashPassword(string password)
         {
+            return PasswordHasher.HashPassword(this, password);
+        }
+
+        private static bool IsLegacySha256Hex(string hash) =>
+            hash.Length == 64 && hash.All(Uri.IsHexDigit);
+
+        private static string ComputeLegacySha256Hex(string password)
+        {
             byte[] bytes = SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(password));
-            return Convert.ToHexString(bytes).ToLower();
+            return Convert.ToHexString(bytes).ToLowerInvariant();
         }
 
     }

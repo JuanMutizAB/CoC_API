@@ -1123,6 +1123,40 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         Assert.Equal(CampaignStatus.Scheduled, approved.Status);
     }
 
+    [Fact]
+    public async Task UserPasswordsUseSaltedPbkdf2AndMigrateLegacySha256HashesOnLogin()
+    {
+        var userA = new User(1, "Alice Example", "alice@example.com", "StrongPass123!", new DateOnly(1995, 5, 1), "111222333", null);
+        var userB = new User(2, "Bob Example", "bob@example.com", "StrongPass123!", new DateOnly(1995, 5, 1), "444555666", null);
+
+        Assert.NotEqual(userA.password, userB.password);
+        Assert.NotEqual(64, userA.password.Length);
+        Assert.True(userA.CheckPassword("StrongPass123!"));
+
+        var legacyHash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes("StandardPass123!"))).ToLowerInvariant();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+            await db.Users
+                .Where(u => u.id == UserIds.StandardOwner)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(u => u.password, legacyHash));
+        }
+
+        using var firstLogin = await LoginAsync("standard@example.com", "StandardPass123!");
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+            var upgraded = await db.Users.SingleAsync(u => u.id == UserIds.StandardOwner);
+            Assert.NotEqual(legacyHash, upgraded.password);
+            Assert.NotEqual(64, upgraded.password.Length);
+        }
+
+        using var secondLogin = await LoginAsync("standard@example.com", "StandardPass123!");
+    }
+
     private async Task<HttpClient> LoginAsync(string email, string password)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions
