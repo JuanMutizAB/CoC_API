@@ -214,6 +214,12 @@ export function useCampaignListingController() {
     navigate("/accounts");
   };
 
+  const goToDuplicate = (campaign) => {
+    navigate("/campaigns/create", {
+      state: { duplicateCampaign: campaign },
+    });
+  };
+
   return {
     campaigns,
     visibleCampaigns,
@@ -238,6 +244,7 @@ export function useCampaignListingController() {
     getSortIndicator,
     goToCreate,
     goToEdit,
+    goToDuplicate,
     goToAccounts,
     statusOptions: Object.values(CampaignStatus),
     typeOptions: Object.values(CampaignType),
