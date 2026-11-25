@@ -53,7 +53,9 @@ public sealed class FacebookPublishingService(
         var dueCandidates = await db.Campaigns
             .AsNoTracking()
             .Where(campaign =>
-                (campaign.Status == CampaignStatus.Scheduled || campaign.Status == CampaignStatus.Approved)
+                (campaign.Status == CampaignStatus.Scheduled
+                 || campaign.Status == CampaignStatus.Approved
+                 || campaign.Status == CampaignStatus.Sending)
                 && campaign.PublicationDate <= now
                 && campaign.FacebookPostId == null)
             .OrderBy(campaign => campaign.PublicationDate)
@@ -80,7 +82,9 @@ public sealed class FacebookPublishingService(
         var claimed = await db.Campaigns
             .Where(campaign =>
                 campaign.Id == campaignId
-                && (campaign.Status == CampaignStatus.Scheduled || campaign.Status == CampaignStatus.Approved)
+                && (campaign.Status == CampaignStatus.Scheduled
+                    || campaign.Status == CampaignStatus.Approved
+                    || campaign.Status == CampaignStatus.Sending)
                 && campaign.PublicationDate <= now
                 && campaign.FacebookPostId == null)
             .ExecuteUpdateAsync(

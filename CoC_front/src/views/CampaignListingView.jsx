@@ -3,6 +3,7 @@ import { useCampaignListingController } from "../controllers/useCampaignListingC
 import {
   formatCampaignDate,
   formatCampaignDateTime,
+  formatCampaignStatusLabel,
   normalizeCampaignTypes,
 } from "../models/campaignModel";
 import "./CampaignListingView.css";
@@ -340,7 +341,7 @@ export default function CampaignListingView() {
                       </td>
                       <td className="campaign-status-cell">
                         <span className={statusClass}>
-                          {camp.status}
+                          {formatCampaignStatusLabel(camp.status, camp.publicationDate)}
                         </span>
                       </td>
                       <td className="campaign-type-cell">

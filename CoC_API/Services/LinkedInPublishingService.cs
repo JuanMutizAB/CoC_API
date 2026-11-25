@@ -59,7 +59,9 @@ public sealed class LinkedInPublishingService(
         var dueCandidates = await db.Campaigns
             .AsNoTracking()
             .Where(campaign =>
-                (campaign.Status == CampaignStatus.Scheduled || campaign.Status == CampaignStatus.Approved)
+                (campaign.Status == CampaignStatus.Scheduled
+                 || campaign.Status == CampaignStatus.Approved
+                 || campaign.Status == CampaignStatus.Sending)
                 && campaign.PublicationDate <= now
                 && campaign.LinkedInPostId == null)
             .OrderBy(campaign => campaign.PublicationDate)
@@ -86,7 +88,9 @@ public sealed class LinkedInPublishingService(
         var claimed = await db.Campaigns
             .Where(campaign =>
                 campaign.Id == campaignId
-                && (campaign.Status == CampaignStatus.Scheduled || campaign.Status == CampaignStatus.Approved)
+                && (campaign.Status == CampaignStatus.Scheduled
+                    || campaign.Status == CampaignStatus.Approved
+                    || campaign.Status == CampaignStatus.Sending)
                 && campaign.PublicationDate <= now
                 && campaign.LinkedInPostId == null)
             .ExecuteUpdateAsync(

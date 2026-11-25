@@ -185,7 +185,16 @@ namespace CoC_API.Models
             if (Status != CampaignStatus.InReview)
                 throw new InvalidOperationException("Only campaigns in review can be approved.");
 
-            var publicationStatus = ResolvePublicationStatus(PublicationDate, DateTimeOffset.UtcNow);
+            var now = DateTimeOffset.UtcNow;
+            if (IsPastMinute(PublicationDate, now))
+            {
+                if (PublicationDate <= now - TimeSpan.FromHours(24))
+                    throw new InvalidOperationException("Campaign review period has expired.");
+
+                PublicationDate = now;
+            }
+
+            var publicationStatus = ResolvePublicationStatus(PublicationDate, now);
             Status = Types.Contains(CampaignType.Instagram)
                 || Types.Contains(CampaignType.LinkedIn)
                 || Types.Contains(CampaignType.Facebook)
@@ -262,7 +271,7 @@ namespace CoC_API.Models
             InstagramMediaId = mediaId;
             Status = AreAllPublishingChannelsCompleted()
                 ? CampaignStatus.Closed
-                : CampaignStatus.Scheduled;
+                : CampaignStatus.Sending;
         }
 
         public void FailInstagramPublication()
@@ -281,7 +290,7 @@ namespace CoC_API.Models
             LinkedInPostId = postId;
             Status = AreAllPublishingChannelsCompleted()
                 ? CampaignStatus.Closed
-                : CampaignStatus.Scheduled;
+                : CampaignStatus.Sending;
         }
 
         private bool AreAllPublishingChannelsCompleted()
@@ -312,7 +321,7 @@ namespace CoC_API.Models
             FacebookPostId = postId;
             Status = AreAllPublishingChannelsCompleted()
                 ? CampaignStatus.Closed
-                : CampaignStatus.Scheduled;
+                : CampaignStatus.Sending;
         }
 
         public void FailFacebookPublication()
@@ -328,6 +337,9 @@ namespace CoC_API.Models
 
             return justificationText.Trim();
         }
+
+        public static bool IsPastMinute(DateTimeOffset value, DateTimeOffset now) =>
+            ToUtcMinuteTicks(value) < ToUtcMinuteTicks(now);
 
         private static long ToUtcMinuteTicks(DateTimeOffset value)
         {

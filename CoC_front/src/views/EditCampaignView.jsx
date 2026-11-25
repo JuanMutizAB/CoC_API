@@ -1,6 +1,7 @@
 import MultiSelectDropdown from "./components/MultiSelectDropdown";
 import PageHeader from "./components/PageHeader";
 import { useEditCampaignController } from "../controllers/useEditCampaignController";
+import { formatCampaignStatusLabel } from "../models/campaignModel";
 import "./EditCampaignView.css";
 
 /**
@@ -126,7 +127,9 @@ export default function EditCampaignView({ readOnly = false }) {
               <h1 id="edit-campaign-title">
                 {isDetailsMode || !canEditFields ? "Campaign Details" : "Edit Campaign"}
               </h1>
-              <span className={statusClass}>{status}</span>
+              <span className={statusClass}>
+                {formatCampaignStatusLabel(status, campaign.publicationDate)}
+              </span>
             </div>
             <p>{subtitleText}</p>
           </div>

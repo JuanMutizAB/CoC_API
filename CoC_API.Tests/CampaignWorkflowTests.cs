@@ -801,7 +801,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             var afterInsta = await midDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == campaign.Id);
             Assert.Equal("media-456", afterInsta.InstagramMediaId);
             Assert.Null(afterInsta.LinkedInPostId);
-            Assert.Equal(CampaignStatus.Scheduled, afterInsta.Status);
+            Assert.Equal(CampaignStatus.Sending, afterInsta.Status);
         }
 
         var imageResponse = new HttpResponseMessage(HttpStatusCode.OK)
@@ -826,7 +826,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         Assert.Equal("media-456", finalCampaign.InstagramMediaId);
         Assert.Equal("urn:li:share:post-456", finalCampaign.LinkedInPostId);
         Assert.Null(finalCampaign.FacebookPostId);
-        Assert.Equal(CampaignStatus.Scheduled, finalCampaign.Status);
+        Assert.Equal(CampaignStatus.Sending, finalCampaign.Status);
 
         await RunFacebookPublishingWorkerOnceAsync(new QueueHttpMessageHandler(
             JsonResponse(
@@ -856,6 +856,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         var scheduledOverdue = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
         var sendingOverdue = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
         var scheduledWithinGrace = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
+        var futureScheduled = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
         var closedOverdue = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
 
         var overdueTime = DateTimeOffset.UtcNow.AddMinutes(-6);
@@ -887,15 +888,156 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             factory.Services.GetRequiredService<IHostEnvironment>(),
             factory.Services.GetRequiredService<ILogger<CampaignExpirationService>>());
 
-        await service.FailOverdueCampaignsAsync(CancellationToken.None);
+        await service.ProcessCampaignLifecycleAsync(CancellationToken.None);
 
         using var verifyScope = factory.Services.CreateScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<CoC_DbContext>();
         Assert.Equal(CampaignStatus.Failed, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == approvedCampaign.Id)).Status);
         Assert.Equal(CampaignStatus.Failed, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == scheduledOverdue.Id)).Status);
         Assert.Equal(CampaignStatus.Failed, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == sendingOverdue.Id)).Status);
-        Assert.Equal(CampaignStatus.Scheduled, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == scheduledWithinGrace.Id)).Status);
+        Assert.Equal(CampaignStatus.Sending, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == scheduledWithinGrace.Id)).Status);
+        Assert.Equal(CampaignStatus.Scheduled, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == futureScheduled.Id)).Status);
         Assert.Equal(CampaignStatus.Closed, (await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == closedOverdue.Id)).Status);
+    }
+
+    [Fact]
+    public async Task SendingCampaignCannotBeEdited()
+    {
+        using var owner = await LoginAsync("standard@example.com", "StandardPass123!");
+        var now = DateTimeOffset.UtcNow;
+        if (now.Second >= 55)
+            await Task.Delay((60 - now.Second) * 1000 + 200);
+
+        var createResponse = await owner.PostAsJsonAsync(
+            "/campaigns",
+            new
+            {
+                name = "Immediate sending campaign",
+                description = "Starts in Sending",
+                modelMsg = "Sending now",
+                types = new[] { CampaignType.Email },
+                publicationDate = DateTimeOffset.UtcNow
+            });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var campaign = await ReadCampaignAsync(createResponse);
+        Assert.Equal(CampaignStatus.Sending, campaign.Status);
+
+        var editResponse = await owner.PutAsJsonAsync(
+            $"/campaigns/{campaign.Id}/edit",
+            new { name = "Attempted edit while sending" });
+        Assert.Equal(HttpStatusCode.Conflict, editResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task FailedCampaignCannotBeEdited()
+    {
+        using var owner = await LoginAsync("standard@example.com", "StandardPass123!");
+        var campaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.StandardOwner);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+            await db.Campaigns
+                .Where(item => item.Id == campaign.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(
+                    item => item.Status,
+                    CampaignStatus.Failed));
+        }
+
+        var editResponse = await owner.PutAsJsonAsync(
+            $"/campaigns/{campaign.Id}/edit",
+            new { name = "Attempted edit when failed" });
+        Assert.Equal(HttpStatusCode.Conflict, editResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task InReviewAndForChangeWithin24HoursUpdatePublicationDateToNowWhenApprovedOrEdited()
+    {
+        using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
+        using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
+
+        var approveCampaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var forChangeCampaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+
+        var requestChanges = await reviewer.PutAsJsonAsync(
+            $"/campaigns/{forChangeCampaign.Id}/review/request-changes",
+            new { motivo = Motivo.InadequateContent, justificationText = "Update content." });
+        Assert.Equal(HttpStatusCode.OK, requestChanges.StatusCode);
+
+        var pastWithin24h = DateTimeOffset.UtcNow.AddHours(-2);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+            await db.Campaigns
+                .Where(item => item.Id == approveCampaign.Id || item.Id == forChangeCampaign.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.PublicationDate, pastWithin24h));
+        }
+
+        var beforeAction = DateTimeOffset.UtcNow.AddMinutes(-1);
+        var approveResponse = await reviewer.PutAsync($"/campaigns/{approveCampaign.Id}/review/approve", null);
+        Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
+        Assert.Equal(CampaignStatus.Sending, (await ReadCampaignAsync(approveResponse)).Status);
+
+        var editForChangeResponse = await owner.PutAsJsonAsync(
+            $"/campaigns/{forChangeCampaign.Id}/edit",
+            new { name = "Updated within 24h", publicationDate = pastWithin24h });
+        Assert.Equal(HttpStatusCode.OK, editForChangeResponse.StatusCode);
+        Assert.Equal(CampaignStatus.InReview, (await ReadCampaignAsync(editForChangeResponse)).Status);
+
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        var approvedStored = await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == approveCampaign.Id);
+        var editedStored = await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == forChangeCampaign.Id);
+        Assert.True(approvedStored.PublicationDate >= beforeAction);
+        Assert.True(editedStored.PublicationDate >= beforeAction);
+    }
+
+    [Fact]
+    public async Task InReviewAndForChangePast24HoursAreAutomaticallyCanceled()
+    {
+        using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
+        using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
+
+        var expiredInReview = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var expiredForChange = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var activeInReview = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+
+        var requestChanges = await reviewer.PutAsJsonAsync(
+            $"/campaigns/{expiredForChange.Id}/review/request-changes",
+            new { motivo = Motivo.InadequateContent, justificationText = "Fix content." });
+        Assert.Equal(HttpStatusCode.OK, requestChanges.StatusCode);
+
+        var expiredDate = DateTimeOffset.UtcNow.AddHours(-25);
+        var within24hDate = DateTimeOffset.UtcNow.AddHours(-23);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+            await db.Campaigns
+                .Where(item => item.Id == expiredInReview.Id || item.Id == expiredForChange.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.PublicationDate, expiredDate));
+            await db.Campaigns
+                .Where(item => item.Id == activeInReview.Id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.PublicationDate, within24hDate));
+        }
+
+        var service = new CampaignExpirationService(
+            factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            factory.Services.GetRequiredService<IHostEnvironment>(),
+            factory.Services.GetRequiredService<ILogger<CampaignExpirationService>>());
+
+        await service.ProcessCampaignLifecycleAsync(CancellationToken.None);
+
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        var storedExpiredInReview = await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == expiredInReview.Id);
+        var storedExpiredForChange = await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == expiredForChange.Id);
+        var storedActiveInReview = await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == activeInReview.Id);
+
+        Assert.Equal(CampaignStatus.Canceled, storedExpiredInReview.Status);
+        Assert.Equal(Motivo.Other, storedExpiredInReview.motivo);
+        Assert.False(string.IsNullOrWhiteSpace(storedExpiredInReview.justificationText));
+        Assert.Equal(CampaignStatus.Canceled, storedExpiredForChange.Status);
+        Assert.Equal(CampaignStatus.InReview, storedActiveInReview.Status);
     }
 
     private async Task<HttpClient> LoginAsync(string email, string password)

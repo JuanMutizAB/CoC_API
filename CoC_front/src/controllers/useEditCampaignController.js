@@ -105,9 +105,12 @@ export function useEditCampaignController({ readOnly = false } = {}) {
 
   const isCanceled = status === CampaignStatus.Canceled;
   const isClosed = status === CampaignStatus.Closed;
+  const isSending = status === CampaignStatus.Sending;
+  const isFailed = status === CampaignStatus.Failed;
   const isForChange = status === CampaignStatus.ForChange;
   const isInReview = status === CampaignStatus.InReview;
-  const isDetailsMode = Boolean(readOnly) || isCanceled || isClosed;
+  const isDetailsMode =
+    Boolean(readOnly) || isCanceled || isClosed || isSending || isFailed;
   const isOwner = Boolean(
     currentUser && campaign && Number(campaign.userId) === Number(currentUser.id)
   );

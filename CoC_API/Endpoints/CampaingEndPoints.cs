@@ -114,7 +114,7 @@ public static class CampaingEndPoints
                 && await CanViewCampaignAsync(campaign, user, db);
             if (campaign.UserId != user.id && !isAdmin && !canAprovadorEditReviewable)
                 return Results.Forbid();
-            if (campaign.Status is CampaignStatus.Canceled or CampaignStatus.Closed)
+            if (campaign.Status is CampaignStatus.Canceled or CampaignStatus.Closed or CampaignStatus.Sending or CampaignStatus.Failed)
                 return Results.Conflict(new { erro = "This campaign can no longer be edited." });
             if (campaign.Status == CampaignStatus.ForChange
                 && !isAdmin
@@ -135,6 +135,15 @@ public static class CampaingEndPoints
                 var imageUrl = request.ImageUrl is null
                     ? campaign.ImageUrl
                     : string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl;
+
+                if (campaign.Status is CampaignStatus.InReview or CampaignStatus.ForChange
+                    && Campaign.IsPastMinute(publicationDate, now))
+                {
+                    if (campaign.PublicationDate <= now - TimeSpan.FromHours(24))
+                        return Results.Conflict(new { erro = "Campaign review period has expired." });
+
+                    publicationDate = now;
+                }
 
                 var status = campaign.Status;
                 if (campaign.Status == CampaignStatus.ForChange)
