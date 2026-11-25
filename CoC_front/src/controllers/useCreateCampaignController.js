@@ -6,6 +6,7 @@ import {
   createCampaignApi,
   formatPublishTimeInput,
   isValidPublishTime,
+  validateEmailRecipients,
 } from "../models/campaignModel";
 import { validateImageUrl } from "../models/validationModel";
 
@@ -17,6 +18,7 @@ const INITIAL_ERRORS = {
   publishDate: "",
   publishTime: "",
   imageUrl: "",
+  emailRecipients: "",
 };
 
 /**
@@ -32,6 +34,7 @@ export function useCreateCampaignController() {
   const [publishDate, setPublishDate] = useState("");
   const [publishTime, setPublishTime] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [emailRecipients, setEmailRecipients] = useState("");
 
   const [errors, setErrors] = useState(INITIAL_ERRORS);
   const [actionMessage, setActionMessage] = useState("");
@@ -91,6 +94,9 @@ export function useCreateCampaignController() {
     }
 
     nextErrors.imageUrl = validateImageUrl(imageUrl);
+    if (types.includes(CampaignType.Email)) {
+      nextErrors.emailRecipients = validateEmailRecipients(emailRecipients);
+    }
 
     if (Object.values(nextErrors).some(Boolean)) {
       setErrors(nextErrors);
@@ -104,6 +110,7 @@ export function useCreateCampaignController() {
     setActionType("");
 
     const trimmedName = name.trim();
+    const includesEmail = types.includes(CampaignType.Email);
     setIsSubmitting(true);
     try {
       await createCampaignApi({
@@ -113,6 +120,7 @@ export function useCreateCampaignController() {
         types,
         publicationDate: combineDateAndTime(publishDate, publishTime),
         imageUrl: imageUrl.trim() || null,
+        emailRecipients: includesEmail ? emailRecipients.trim() || null : null,
       });
 
       navigate("/campaigns", {
@@ -136,6 +144,7 @@ export function useCreateCampaignController() {
     setPublishDate("");
     setPublishTime("");
     setImageUrl("");
+    setEmailRecipients("");
     clearErrors();
     setActionMessage("Form cleared.");
     setActionType("");
@@ -158,6 +167,11 @@ export function useCreateCampaignController() {
     handlePublishTimeChange,
     imageUrl,
     setImageUrl,
+    emailRecipients,
+    setEmailRecipients,
+    showEmailRecipients: types.includes(CampaignType.Email),
+    showFacebookOnlyImageNotice:
+      types.length === 1 && types[0] === CampaignType.Facebook,
     errors,
     actionMessage,
     actionType,

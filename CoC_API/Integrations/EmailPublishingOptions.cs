@@ -20,8 +20,7 @@ public sealed record EmailPublishingOptions(
         !string.IsNullOrWhiteSpace(Host)
         && !string.IsNullOrWhiteSpace(Username)
         && !string.IsNullOrWhiteSpace(Password)
-        && !string.IsNullOrWhiteSpace(From)
-        && RecipientList.Count > 0;
+        && !string.IsNullOrWhiteSpace(From);
 
     public bool HasAnyValue =>
         !string.IsNullOrWhiteSpace(Host)

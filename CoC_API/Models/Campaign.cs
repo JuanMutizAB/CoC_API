@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Net.Mail;
 
 namespace CoC_API.Models
 {
@@ -14,6 +15,7 @@ namespace CoC_API.Models
         private DateTimeOffset createdAt;
         private DateTimeOffset publicationDate;
         private string? imageUrl;
+        private string? emailRecipients;
         private int userId;
 
         public Guid Id { get; private set; } = Guid.NewGuid();
@@ -114,6 +116,12 @@ namespace CoC_API.Models
 
         public string? EmailMessageId { get; private set; }
 
+        public string? EmailRecipients
+        {
+            get => emailRecipients;
+            private set => emailRecipients = NormalizeAndValidateRecipients(value);
+        }
+
         public int UserId
         {
             get => userId;
@@ -137,7 +145,7 @@ namespace CoC_API.Models
 
         public Campaign(string name, string description, string modelMsg, IEnumerable<CampaignType> types,
             CampaignStatus status, DateTimeOffset publicationDate, string? imageUrl, int userId,
-            DateTimeOffset validationTime)
+            DateTimeOffset validationTime, string? emailRecipients = null)
         {
             ResolvePublicationStatus(publicationDate, validationTime);
             Name = name;
@@ -148,13 +156,15 @@ namespace CoC_API.Models
             CreatedAt = DateTimeOffset.UtcNow;
             PublicationDate = publicationDate;
             ImageUrl = imageUrl;
+            EmailRecipients = emailRecipients;
             UserId = userId;
             justificationText = string.Empty;
             motivo = Motivo.None;
         }
 
         public void EditCampaign(string name, string description, string modelMsg, IEnumerable<CampaignType> types,
-            CampaignStatus status, DateTimeOffset publicationDate, string? imageUrl, DateTimeOffset validationTime)
+            CampaignStatus status, DateTimeOffset publicationDate, string? imageUrl, DateTimeOffset validationTime,
+            string? emailRecipients = null)
         {
             var wasForChange = Status == CampaignStatus.ForChange;
             var editedCampaign = new Campaign(
@@ -166,7 +176,8 @@ namespace CoC_API.Models
                 publicationDate,
                 imageUrl,
                 userId,
-                validationTime);
+                validationTime,
+                emailRecipients);
 
             Name = editedCampaign.Name;
             Description = editedCampaign.Description;
@@ -175,6 +186,7 @@ namespace CoC_API.Models
             Status = editedCampaign.Status;
             PublicationDate = editedCampaign.PublicationDate;
             ImageUrl = editedCampaign.ImageUrl;
+            EmailRecipients = editedCampaign.EmailRecipients;
             if (wasForChange && Status != CampaignStatus.ForChange)
             {
                 motivo = Motivo.None;
@@ -346,7 +358,7 @@ namespace CoC_API.Models
             EmailMessageId = messageId;
             Status = AreAllPublishingChannelsCompleted()
                 ? CampaignStatus.Closed
-                : CampaignStatus.Scheduled;
+                : CampaignStatus.Sending;
         }
 
         public void FailEmailPublication()
@@ -361,6 +373,35 @@ namespace CoC_API.Models
                 throw new ArgumentException("A justification is required.", nameof(justificationText));
 
             return justificationText.Trim();
+        }
+
+        public IReadOnlyList<string> GetEmailRecipientList() =>
+            string.IsNullOrWhiteSpace(EmailRecipients)
+                ? []
+                : EmailRecipients
+                    .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList();
+
+        private static string? NormalizeAndValidateRecipients(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
+
+            var recipients = value
+                .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (recipients.Count == 0)
+                return null;
+
+            foreach (var recipient in recipients)
+            {
+                if (!MailAddress.TryCreate(recipient, out var parsed) || !parsed.Address.Contains('@'))
+                    throw new ArgumentException($"Invalid email recipient: '{recipient}'.", nameof(EmailRecipients));
+            }
+
+            return string.Join(", ", recipients);
         }
 
         public static bool IsPastMinute(DateTimeOffset value, DateTimeOffset now) =>

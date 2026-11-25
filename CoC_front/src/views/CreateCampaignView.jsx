@@ -22,6 +22,10 @@ export default function CreateCampaignView() {
     handlePublishTimeChange,
     imageUrl,
     setImageUrl,
+    emailRecipients,
+    setEmailRecipients,
+    showEmailRecipients,
+    showFacebookOnlyImageNotice,
     errors,
     actionMessage,
     actionType,
@@ -100,6 +104,26 @@ export default function CreateCampaignView() {
                 {errors.type}
               </span>
             </div>
+
+            {showEmailRecipients && (
+              <div className="form-group form-group--full">
+                <label htmlFor="campaign-email-recipients">Email Recipients</label>
+                <input
+                  id="campaign-email-recipients"
+                  type="text"
+                  placeholder="recipient1@example.com, recipient2@example.com"
+                  value={emailRecipients}
+                  onChange={(e) => setEmailRecipients(e.target.value)}
+                  className={errors.emailRecipients ? "invalid" : undefined}
+                />
+                <span className="field-hint">
+                  Separate multiple email addresses with commas or semicolons. Leave blank to use default server recipients.
+                </span>
+                <span className="error-message" id="email-recipients-error">
+                  {errors.emailRecipients}
+                </span>
+              </div>
+            )}
 
             <div className="form-group form-group--full">
               <label htmlFor="campaign-description">Description</label>
@@ -183,6 +207,11 @@ export default function CreateCampaignView() {
               <span className="field-hint">
                 Optional. Provide an image URL.
               </span>
+              {showFacebookOnlyImageNotice && (
+                <span className="field-warning" role="status">
+                  Aviso: se adicionar uma imagem, a publicação no Facebook será encaminhada para as Fotos em vez do Feed.
+                </span>
+              )}
               <span className="error-message" id="image-url-error">
                 {errors.imageUrl}
               </span>

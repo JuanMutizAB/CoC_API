@@ -50,7 +50,9 @@ public sealed class EmailPublishingService(
         var dueCandidates = await db.Campaigns
             .AsNoTracking()
             .Where(campaign =>
-                (campaign.Status == CampaignStatus.Scheduled || campaign.Status == CampaignStatus.Approved)
+                (campaign.Status == CampaignStatus.Scheduled
+                 || campaign.Status == CampaignStatus.Approved
+                 || campaign.Status == CampaignStatus.Sending)
                 && campaign.PublicationDate <= now
                 && campaign.EmailMessageId == null)
             .OrderBy(campaign => campaign.PublicationDate)
@@ -77,7 +79,9 @@ public sealed class EmailPublishingService(
         var claimed = await db.Campaigns
             .Where(campaign =>
                 campaign.Id == campaignId
-                && (campaign.Status == CampaignStatus.Scheduled || campaign.Status == CampaignStatus.Approved)
+                && (campaign.Status == CampaignStatus.Scheduled
+                    || campaign.Status == CampaignStatus.Approved
+                    || campaign.Status == CampaignStatus.Sending)
                 && campaign.PublicationDate <= now
                 && campaign.EmailMessageId == null)
             .ExecuteUpdateAsync(
@@ -98,10 +102,13 @@ public sealed class EmailPublishingService(
             var messageId = await email.SendCampaignAsync(campaignToPublish, cancellationToken);
             campaignToPublish.CompleteEmailPublication(messageId);
             await db.SaveChangesAsync(cancellationToken);
+            var recipientCount = campaignToPublish.GetEmailRecipientList().Count;
+            if (recipientCount == 0)
+                recipientCount = options.RecipientList.Count;
             logger.LogInformation(
                 "Campaign {CampaignId} was emailed to {Count} recipients as message {MessageId}.",
                 campaignId,
-                options.RecipientList.Count,
+                recipientCount,
                 messageId);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

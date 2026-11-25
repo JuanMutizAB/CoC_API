@@ -329,6 +329,18 @@ button {
   color: var(--muted);
 }
 
+.field-warning {
+  display: block;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #f0c36d;
+  background-color: #fff8e6;
+  color: #8a5300;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .error-message {
   display: block;
   min-height: 18px;

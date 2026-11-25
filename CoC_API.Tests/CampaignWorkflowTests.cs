@@ -915,7 +915,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
                 name = "Immediate sending campaign",
                 description = "Starts in Sending",
                 modelMsg = "Sending now",
-                types = new[] { CampaignType.Email },
+                types = new[] { CampaignType.Messaging },
                 publicationDate = DateTimeOffset.UtcNow
             });
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
@@ -956,8 +956,8 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
         using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
 
-        var approveCampaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
-        var forChangeCampaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var approveCampaign = await CreateCampaignAsync(owner, CampaignType.Messaging, UserIds.ApprovalOwner);
+        var forChangeCampaign = await CreateCampaignAsync(owner, CampaignType.Messaging, UserIds.ApprovalOwner);
 
         var requestChanges = await reviewer.PutAsJsonAsync(
             $"/campaigns/{forChangeCampaign.Id}/review/request-changes",
@@ -1038,6 +1038,89 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         Assert.False(string.IsNullOrWhiteSpace(storedExpiredInReview.justificationText));
         Assert.Equal(CampaignStatus.Canceled, storedExpiredForChange.Status);
         Assert.Equal(CampaignStatus.InReview, storedActiveInReview.Status);
+    }
+
+    [Fact]
+    public async Task EmailCampaignWithCustomRecipientsNormalizesValidatesAndWorksWithoutDefaultRecipients()
+    {
+        using var owner = await LoginAsync("standard@example.com", "StandardPass123!");
+
+        var invalidResponse = await owner.PostAsJsonAsync(
+            "/campaigns",
+            new
+            {
+                name = "Invalid email recipients",
+                description = "Invalid email test",
+                modelMsg = "Body",
+                types = new[] { CampaignType.Email },
+                publicationDate = DateTimeOffset.UtcNow.AddMinutes(20),
+                emailRecipients = "valid@example.com, not-an-email"
+            });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidResponse.StatusCode);
+
+        var createResponse = await owner.PostAsJsonAsync(
+            "/campaigns",
+            new
+            {
+                name = "Custom email recipients",
+                description = "Custom recipients test",
+                modelMsg = "Hello subscribers",
+                types = new[] { CampaignType.Email },
+                publicationDate = DateTimeOffset.UtcNow.AddMinutes(20),
+                emailRecipients = "first@example.com; second@example.com, FIRST@example.com"
+            });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var created = await ReadCampaignAsync(createResponse);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        var stored = await db.Campaigns.AsNoTracking().SingleAsync(item => item.Id == created.Id);
+        Assert.Equal("first@example.com, second@example.com", stored.EmailRecipients);
+        Assert.Equal(["first@example.com", "second@example.com"], stored.GetEmailRecipientList());
+
+        var optionsWithoutDefaultRecipients = new EmailPublishingOptions(
+            "smtp.example.test",
+            "587",
+            "smtp-user",
+            "smtp-pass",
+            "noreply@example.com",
+            null);
+        Assert.True(optionsWithoutDefaultRecipients.IsConfigured);
+
+        var emptyOptionsClient = new EmailClient(optionsWithoutDefaultRecipients);
+        var campaignWithoutRecipients = new Campaign(
+            "No recipients",
+            "Missing recipients",
+            "Body",
+            new[] { CampaignType.Email },
+            CampaignStatus.Sending,
+            DateTimeOffset.UtcNow,
+            null,
+            UserIds.StandardOwner,
+            DateTimeOffset.UtcNow);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => emptyOptionsClient.SendCampaignAsync(campaignWithoutRecipients, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task InReviewCampaignCanStillBeApprovedAfterOwnerChangesFromAprovandoToAprovador()
+    {
+        using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
+        using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
+
+        var campaign = await CreateCampaignAsync(owner, CampaignType.Messaging, UserIds.ApprovalOwner);
+        Assert.Equal(CampaignStatus.InReview, campaign.Status);
+
+        var updateRoleResponse = await admin.PutAsJsonAsync(
+            $"/users/{UserIds.ApprovalOwner}",
+            new { caracteristics = new[] { "isActive", "isAprovador" } });
+        Assert.Equal(HttpStatusCode.NoContent, updateRoleResponse.StatusCode);
+
+        var approveResponse = await owner.PutAsync($"/campaigns/{campaign.Id}/review/approve", null);
+        Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);
+
+        var approved = await ReadCampaignAsync(approveResponse);
+        Assert.Equal(CampaignStatus.Scheduled, approved.Status);
     }
 
     private async Task<HttpClient> LoginAsync(string email, string password)

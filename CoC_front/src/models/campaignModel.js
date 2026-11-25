@@ -106,6 +106,29 @@ export function formatCampaignStatusLabel(status, publicationDate) {
 }
 
 /**
+ * Validates a comma/semicolon-separated list of optional email recipients.
+ */
+export function validateEmailRecipients(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return "";
+  }
+
+  const parts = raw
+    .split(/[;,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  for (const email of parts) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return `Invalid email address: ${email}`;
+    }
+  }
+
+  return "";
+}
+
+/**
  * Extracts local { publishDate: "YYYY-MM-DD", publishTime: "HH:mm" } from an ISO value.
  */
 export function extractDateAndTime(isoValue) {
@@ -201,6 +224,7 @@ export function normalizeCampaign(camp) {
     createdAt: camp.createdAt || camp.CreatedAt || null,
     publicationDate: camp.publicationDate || camp.PublicationDate || null,
     imageUrl: camp.imageUrl ?? camp.ImageUrl ?? camp.image ?? null,
+    emailRecipients: camp.emailRecipients ?? camp.EmailRecipients ?? "",
     userId: camp.userId ?? camp.UserId ?? null,
     motivo: normalizedMotivo,
     justificationText:
