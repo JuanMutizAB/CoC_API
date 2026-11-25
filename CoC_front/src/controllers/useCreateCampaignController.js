@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   CampaignType,
   combineDateAndTime,
   createCampaignApi,
   formatPublishTimeInput,
   isValidPublishTime,
+  normalizeCampaignTypes,
   validateEmailRecipients,
 } from "../models/campaignModel";
 import { validateImageUrl } from "../models/validationModel";
@@ -26,13 +27,26 @@ const INITIAL_ERRORS = {
  */
 export function useCreateCampaignController() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const duplicateCampaign = location.state?.duplicateCampaign || null;
 
-  const [name, setName] = useState("");
-  const [types, setTypes] = useState([]);
-  const [description, setDescription] = useState("");
-  const [modelMsg, setModelMsg] = useState("");
+  const [name, setName] = useState(() => duplicateCampaign?.name || "");
+  const [types, setTypes] = useState(() =>
+    duplicateCampaign
+      ? normalizeCampaignTypes(duplicateCampaign.types ?? duplicateCampaign.type)
+      : []
+  );
+  const [description, setDescription] = useState(
+    () => duplicateCampaign?.description || ""
+  );
+  const [modelMsg, setModelMsg] = useState(
+    () => duplicateCampaign?.modelMsg || ""
+  );
   const [publishDate, setPublishDate] = useState("");
   const [publishTime, setPublishTime] = useState("");
+  const [imageUrl, setImageUrl] = useState(
+    () => duplicateCampaign?.imageUrl || ""
+  );
   const [imageUrl, setImageUrl] = useState("");
   const [emailRecipients, setEmailRecipients] = useState("");
 
