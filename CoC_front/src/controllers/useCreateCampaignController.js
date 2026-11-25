@@ -47,8 +47,9 @@ export function useCreateCampaignController() {
   const [imageUrl, setImageUrl] = useState(
     () => duplicateCampaign?.imageUrl || ""
   );
-  const [imageUrl, setImageUrl] = useState("");
-  const [emailRecipients, setEmailRecipients] = useState("");
+  const [emailRecipients, setEmailRecipients] = useState(
+    () => duplicateCampaign?.emailRecipients || ""
+  );
 
   const [errors, setErrors] = useState(INITIAL_ERRORS);
   const [actionMessage, setActionMessage] = useState("");
