@@ -173,6 +173,73 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task FacebookClientPublishesPageTextPostAndReturnsPostId()
+    {
+        var handler = new QueueHttpMessageHandler(
+            JsonResponse(HttpStatusCode.OK, """{"id":"page-123_post-456"}"""));
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://graph.facebook.com/")
+        };
+        var client = new FacebookGraphApiClient(
+            httpClient,
+            new FacebookPublishingOptions("test-page-token", "page-123", "v27.0"));
+        var campaign = new Campaign(
+            "Facebook campaign",
+            "Test only",
+            "A test post",
+            new[] { CampaignType.Facebook },
+            CampaignStatus.Scheduled,
+            DateTimeOffset.UtcNow.AddMinutes(5),
+            null,
+            UserIds.StandardOwner,
+            DateTimeOffset.UtcNow);
+
+        var postId = await client.PublishPostAsync(campaign, CancellationToken.None);
+
+        Assert.Equal("page-123_post-456", postId);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("https://graph.facebook.com/v27.0/page-123/feed", request.Uri);
+        Assert.Equal("test-page-token", request.BearerToken);
+        Assert.Contains("message=Facebook+campaign%0AA+test+post", request.Body);
+    }
+
+    [Fact]
+    public async Task FacebookClientPublishesPagePhotoAndReturnsPostId()
+    {
+        var handler = new QueueHttpMessageHandler(
+            JsonResponse(
+                HttpStatusCode.OK,
+                """{"id":"photo-123","post_id":"page-123_post-456"}"""));
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://graph.facebook.com/")
+        };
+        var client = new FacebookGraphApiClient(
+            httpClient,
+            new FacebookPublishingOptions("test-page-token", "page-123", "v27.0"));
+        var campaign = new Campaign(
+            "Facebook campaign",
+            "Test only",
+            "A photo post",
+            new[] { CampaignType.Facebook },
+            CampaignStatus.Scheduled,
+            DateTimeOffset.UtcNow.AddMinutes(5),
+            "https://images.example.test/campaign.jpg",
+            UserIds.StandardOwner,
+            DateTimeOffset.UtcNow);
+
+        var postId = await client.PublishPostAsync(campaign, CancellationToken.None);
+
+        Assert.Equal("page-123_post-456", postId);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("https://graph.facebook.com/v27.0/page-123/photos", request.Uri);
+        Assert.Contains("url=https%3A%2F%2Fimages.example.test%2Fcampaign.jpg", request.Body);
+        Assert.Contains("message=Facebook+campaign%0AA+photo+post", request.Body);
+    }
+
+    [Fact]
     public async Task LinkedInClientPublishesMemberTextPostAndReturnsPostId()
     {
         var response = new HttpResponseMessage(HttpStatusCode.Created);
@@ -696,7 +763,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MultiPlatformInstagramAndLinkedInCampaignPublishesBothBeforeClosing()
+    public async Task MultiPlatformCampaignPublishesInstagramLinkedInAndFacebookBeforeClosing()
     {
         using var owner = await LoginAsync("standard@example.com", "StandardPass123!");
         var createResponse = await owner.PostAsJsonAsync(
@@ -704,9 +771,9 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             new
             {
                 name = "Multi-platform campaign",
-                description = "Publish to Instagram and LinkedIn",
+                description = "Publish to Instagram, LinkedIn, and Facebook",
                 modelMsg = "Cross-platform post",
-                types = new[] { CampaignType.Instagram, CampaignType.LinkedIn },
+                types = new[] { CampaignType.Instagram, CampaignType.LinkedIn, CampaignType.Facebook },
                 publicationDate = DateTimeOffset.UtcNow.AddMinutes(20),
                 imageUrl = "https://8.8.8.8/campaign.png"
             });
@@ -758,7 +825,21 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         var finalCampaign = await verifyDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == campaign.Id);
         Assert.Equal("media-456", finalCampaign.InstagramMediaId);
         Assert.Equal("urn:li:share:post-456", finalCampaign.LinkedInPostId);
-        Assert.Equal(CampaignStatus.Closed, finalCampaign.Status);
+        Assert.Null(finalCampaign.FacebookPostId);
+        Assert.Equal(CampaignStatus.Scheduled, finalCampaign.Status);
+
+        await RunFacebookPublishingWorkerOnceAsync(new QueueHttpMessageHandler(
+            JsonResponse(
+                HttpStatusCode.OK,
+                """{"id":"photo-789","post_id":"page-123_post-789"}""")));
+
+        using var finalScope = factory.Services.CreateScope();
+        var finalDb = finalScope.ServiceProvider.GetRequiredService<CoC_DbContext>();
+        var completedCampaign = await finalDb.Campaigns.AsNoTracking().SingleAsync(item => item.Id == campaign.Id);
+        Assert.Equal("media-456", completedCampaign.InstagramMediaId);
+        Assert.Equal("urn:li:share:post-456", completedCampaign.LinkedInPostId);
+        Assert.Equal("page-123_post-789", completedCampaign.FacebookPostId);
+        Assert.Equal(CampaignStatus.Closed, completedCampaign.Status);
     }
 
     [Fact]
@@ -928,6 +1009,23 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             linkedIn,
             options,
             factory.Services.GetRequiredService<ILogger<LinkedInPublishingService>>());
+
+        await service.PublishDueCampaignsAsync(CancellationToken.None);
+    }
+
+    private async Task RunFacebookPublishingWorkerOnceAsync(QueueHttpMessageHandler handler)
+    {
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://graph.facebook.com/")
+        };
+        var options = new FacebookPublishingOptions("test-page-token", "page-123", "v27.0");
+        var facebook = new FacebookGraphApiClient(httpClient, options);
+        var service = new FacebookPublishingService(
+            factory.Services.GetRequiredService<IServiceScopeFactory>(),
+            facebook,
+            options,
+            factory.Services.GetRequiredService<ILogger<FacebookPublishingService>>());
 
         await service.PublishDueCampaignsAsync(CancellationToken.None);
     }

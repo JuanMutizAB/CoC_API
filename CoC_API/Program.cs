@@ -46,6 +46,17 @@ builder.Services.AddHttpClient<LinkedInApiClient>(client =>
 builder.Services.AddHostedService<LinkedInPublishingService>();
 builder.Services.AddHostedService<CampaignExpirationService>();
 
+var facebookOptions = new FacebookPublishingOptions(
+    builder.Configuration["COC_API_FACEBOOK_PAGE_ACCESS_TOKEN"],
+    builder.Configuration["COC_API_FACEBOOK_PAGE_ID"],
+    builder.Configuration["COC_API_FACEBOOK_GRAPH_API_VERSION"]);
+builder.Services.AddSingleton(facebookOptions);
+builder.Services.AddHttpClient<FacebookGraphApiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://graph.facebook.com/");
+});
+builder.Services.AddHostedService<FacebookPublishingService>();
+
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

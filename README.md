@@ -59,7 +59,7 @@ dotnet ef database drop --force
 dotnet ef database update
 ```
 
-Isto recria `Cockpit_of_Comms` com o esquema final, incluindo sessões e publicação Instagram e LinkedIn.
+Isto recria `Cockpit_of_Comms` com o esquema final, incluindo sessões e publicação Instagram, LinkedIn e Facebook.
 
 ### 4. Correr a API
 
@@ -97,13 +97,27 @@ O token tem de ter autorização para publicar no perfil pessoal configurado; o 
 
 Cria uma campanha `LinkedIn` com uma data/hora UTC futura. Se o criador tiver a característica `isAprovando`, um utilizador `isAprovador` tem de aprová-la em `PUT /campaigns/{id}/review/approve`. O worker verifica a base de dados a cada 15 segundos. Consulta `GET /campaigns/{id}` para ver o estado: `Closed` significa publicada e `Failed` indica erro. Não há retry automático. Os testes usam HTTP simulado e não publicam conteúdo real.
 
+### Publicação no Facebook
+
+A publicação é feita numa Página do Facebook, não num perfil pessoal. A app Meta precisa do acesso à Pages API e das permissões necessárias para a pessoa autorizada criar conteúdo nessa Página. Para disponibilizar a app a utilizadores externos, a Meta pode exigir App Review e acesso avançado.
+
+Configura o Page Access Token, o ID da Página e a versão da Graph API em User Secrets (não guardes o token no `appsettings.json`):
+
+```bash
+dotnet user-secrets set "COC_API_FACEBOOK_PAGE_ACCESS_TOKEN" "<page-access-token>" --project CoC_API/CoC_API.csproj
+dotnet user-secrets set "COC_API_FACEBOOK_PAGE_ID" "<page-id>" --project CoC_API/CoC_API.csproj
+dotnet user-secrets set "COC_API_FACEBOOK_GRAPH_API_VERSION" "v27.0" --project CoC_API/CoC_API.csproj
+```
+
+O token tem de autorizar a Página configurada e pode expirar; renova-o pelo fluxo oficial da Meta. A integração publica texto e, quando a campanha tem uma imagem, usa o URL HTTPS público dessa imagem. O worker verifica as campanhas a cada 15 segundos. `Closed` significa que todos os canais selecionados publicaram; `Failed` indica que um canal falhou. Não há retry automático. Os testes usam HTTP simulado e não publicam conteúdo real.
+
 ### Testes automatizados
 
 ```bash
 dotnet test CoC_API.Tests/CoC_API.Tests.csproj
 ```
 
-Os testes cobrem revisão, aprovação, rejeição, cancelamento, isolamento de campanhas e os workers Instagram e LinkedIn com respostas HTTP simuladas; não fazem publicações reais.
+Os testes cobrem revisão, aprovação, rejeição, cancelamento, isolamento de campanhas e os workers Instagram, LinkedIn e Facebook com respostas HTTP simuladas; não fazem publicações reais.
 
 ## Endpoints
 
