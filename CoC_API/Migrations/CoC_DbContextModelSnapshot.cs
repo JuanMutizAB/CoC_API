@@ -35,6 +35,9 @@ namespace CoC_API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("EmailMessageId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("FacebookPostId")
                         .HasColumnType("nvarchar(max)");
 

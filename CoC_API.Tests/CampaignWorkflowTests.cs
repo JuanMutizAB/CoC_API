@@ -33,7 +33,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
     {
         using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
         using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
-        var campaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var campaign = await CreateCampaignAsync(owner, CampaignType.Messaging, UserIds.ApprovalOwner);
 
         Assert.Equal(CampaignStatus.InReview, campaign.Status);
 
@@ -52,7 +52,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
                 name = "Revised campaign",
                 description = "Updated after review",
                 modelMsg = "Updated message",
-                types = new[] { CampaignType.Email },
+                types = new[] { CampaignType.Messaging },
                 publicationDate = DateTimeOffset.UtcNow.AddMinutes(20),
                 imageUrl = (string?)null
             });
@@ -565,7 +565,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
     {
         using var owner = await LoginAsync("owner@example.com", "OwnerPass123!");
         using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
-        var campaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var campaign = await CreateCampaignAsync(owner, CampaignType.Messaging, UserIds.ApprovalOwner);
 
         var preUpdateApprove = await admin.PutAsync($"/campaigns/{campaign.Id}/review/approve", null);
         Assert.Equal(HttpStatusCode.Forbidden, preUpdateApprove.StatusCode);
@@ -595,10 +595,10 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         var campaign = await CreateCampaignAsync(
             owner,
             UserIds.StandardOwner,
-            CampaignType.Email,
+            CampaignType.Messaging,
             CampaignType.Instagram);
 
-        Assert.Equal([CampaignType.Email, CampaignType.Instagram], campaign.Types);
+        Assert.Equal([CampaignType.Messaging, CampaignType.Instagram], campaign.Types);
 
         using (var scope = factory.Services.CreateScope())
         {
@@ -670,7 +670,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
 
         // 1. Admin editing a ForChange campaign with a future date moves it directly to Scheduled.
-        var scheduledCampaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var scheduledCampaign = await CreateCampaignAsync(owner, CampaignType.Messaging, UserIds.ApprovalOwner);
         var req1 = await reviewer.PutAsJsonAsync(
             $"/campaigns/{scheduledCampaign.Id}/review/request-changes",
             new { motivo = Motivo.InadequateContent, justificationText = "Missing compliance text." });
@@ -691,7 +691,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         Assert.Equal(string.Empty, adminEdited.JustificationText);
 
         // 2. Aprovador editing a ForChange campaign with current minute moves it directly to Sending.
-        var sendingCampaign = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var sendingCampaign = await CreateCampaignAsync(owner, CampaignType.Messaging, UserIds.ApprovalOwner);
         var req2 = await reviewer.PutAsJsonAsync(
             $"/campaigns/{sendingCampaign.Id}/review/request-changes",
             new { motivo = Motivo.InadequateLanguage, justificationText = "Adjust phrasing." });
@@ -731,7 +731,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
         using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
 
-        var campaignForOwnerAndAdmin = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var campaignForOwnerAndAdmin = await CreateCampaignAsync(owner, CampaignType.Messaging, UserIds.ApprovalOwner);
 
         var ownerEdit = await owner.PutAsJsonAsync(
             $"/campaigns/{campaignForOwnerAndAdmin.Id}/edit",
@@ -745,7 +745,7 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, adminEdit.StatusCode);
         Assert.Equal(CampaignStatus.Scheduled, (await ReadCampaignAsync(adminEdit)).Status);
 
-        var campaignForReviewer = await CreateCampaignAsync(owner, CampaignType.Email, UserIds.ApprovalOwner);
+        var campaignForReviewer = await CreateCampaignAsync(owner, CampaignType.Messaging, UserIds.ApprovalOwner);
         var current = DateTimeOffset.UtcNow;
         if (current.Second >= 55)
             await Task.Delay((60 - current.Second) * 1000 + 200);

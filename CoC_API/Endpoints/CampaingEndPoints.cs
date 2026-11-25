@@ -69,7 +69,8 @@ public static class CampaingEndPoints
                 var types = request.Types ?? new List<CampaignType>();
                 if ((types.Contains(CampaignType.Instagram)
                      || types.Contains(CampaignType.LinkedIn)
-                     || types.Contains(CampaignType.Facebook))
+                     || types.Contains(CampaignType.Facebook)
+                     || types.Contains(CampaignType.Email))
                     && status == CampaignStatus.Sending)
                     status = CampaignStatus.Scheduled;
 
@@ -154,7 +155,8 @@ public static class CampaingEndPoints
 
                 if ((types.Contains(CampaignType.Instagram)
                      || types.Contains(CampaignType.LinkedIn)
-                     || types.Contains(CampaignType.Facebook))
+                     || types.Contains(CampaignType.Facebook)
+                     || types.Contains(CampaignType.Email))
                     && status == CampaignStatus.Sending)
                     status = CampaignStatus.Scheduled;
 

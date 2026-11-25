@@ -112,6 +112,8 @@ namespace CoC_API.Models
 
         public string? FacebookPostId { get; private set; }
 
+        public string? EmailMessageId { get; private set; }
+
         public int UserId
         {
             get => userId;
@@ -189,6 +191,7 @@ namespace CoC_API.Models
             Status = Types.Contains(CampaignType.Instagram)
                 || Types.Contains(CampaignType.LinkedIn)
                 || Types.Contains(CampaignType.Facebook)
+                || Types.Contains(CampaignType.Email)
                 ? CampaignStatus.Approved
                 : publicationStatus;
         }
@@ -293,7 +296,10 @@ namespace CoC_API.Models
             var facebookPending = Types.Contains(CampaignType.Facebook)
                 && string.IsNullOrWhiteSpace(FacebookPostId);
 
-            return !instagramPending && !linkedInPending && !facebookPending;
+            var emailPending = Types.Contains(CampaignType.Email)
+                && string.IsNullOrWhiteSpace(EmailMessageId);
+
+            return !instagramPending && !linkedInPending && !facebookPending && !emailPending;
         }
 
         public void FailLinkedInPublication()
@@ -316,6 +322,25 @@ namespace CoC_API.Models
         }
 
         public void FailFacebookPublication()
+        {
+            if (Status == CampaignStatus.Sending)
+                Status = CampaignStatus.Failed;
+        }
+
+        public void CompleteEmailPublication(string messageId)
+        {
+            if (Status != CampaignStatus.Sending)
+                throw new InvalidOperationException("The campaign is not being published.");
+            if (string.IsNullOrWhiteSpace(messageId))
+                throw new ArgumentException("Email message ID cannot be empty.", nameof(messageId));
+
+            EmailMessageId = messageId;
+            Status = AreAllPublishingChannelsCompleted()
+                ? CampaignStatus.Closed
+                : CampaignStatus.Scheduled;
+        }
+
+        public void FailEmailPublication()
         {
             if (Status == CampaignStatus.Sending)
                 Status = CampaignStatus.Failed;
