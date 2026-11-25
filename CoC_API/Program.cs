@@ -57,6 +57,17 @@ builder.Services.AddHttpClient<FacebookGraphApiClient>(client =>
 });
 builder.Services.AddHostedService<FacebookPublishingService>();
 
+var emailOptions = new EmailPublishingOptions(
+    builder.Configuration["COC_API_EMAIL_SMTP_HOST"],
+    builder.Configuration["COC_API_EMAIL_SMTP_PORT"],
+    builder.Configuration["COC_API_EMAIL_USERNAME"],
+    builder.Configuration["COC_API_EMAIL_PASSWORD"],
+    builder.Configuration["COC_API_EMAIL_FROM"],
+    builder.Configuration["COC_API_EMAIL_RECIPIENTS"]);
+builder.Services.AddSingleton(emailOptions);
+builder.Services.AddSingleton<EmailClient>();
+builder.Services.AddHostedService<EmailPublishingService>();
+
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
