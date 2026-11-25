@@ -1206,14 +1206,13 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         {
             BaseAddress = new Uri("https://graph.facebook.com/")
         };
-        var instagram = new InstagramGraphApiClient(
-            httpClient,
-            new InstagramPublishingOptions("test-token", "account-789", "v22.0"));
-        var service = new InstagramPublishingService(
+        var options = new InstagramPublishingOptions("test-token", "account-789", "v22.0");
+        var instagram = new InstagramGraphApiClient(httpClient, options);
+        var publisher = new InstagramChannelPublisher(instagram, options);
+        var service = new CampaignPublishingService(
             factory.Services.GetRequiredService<IServiceScopeFactory>(),
-            instagram,
-            new InstagramPublishingOptions("test-token", "account-789", "v22.0"),
-            factory.Services.GetRequiredService<ILogger<InstagramPublishingService>>());
+            [publisher],
+            factory.Services.GetRequiredService<ILogger<CampaignPublishingService>>());
 
         await service.PublishDueCampaignsAsync(CancellationToken.None);
     }
@@ -1229,11 +1228,11 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
             "urn:li:person:member-123",
             "202611");
         var linkedIn = new LinkedInApiClient(httpClient, options);
-        var service = new LinkedInPublishingService(
+        var publisher = new LinkedInChannelPublisher(linkedIn, options);
+        var service = new CampaignPublishingService(
             factory.Services.GetRequiredService<IServiceScopeFactory>(),
-            linkedIn,
-            options,
-            factory.Services.GetRequiredService<ILogger<LinkedInPublishingService>>());
+            [publisher],
+            factory.Services.GetRequiredService<ILogger<CampaignPublishingService>>());
 
         await service.PublishDueCampaignsAsync(CancellationToken.None);
     }
@@ -1246,11 +1245,11 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         };
         var options = new FacebookPublishingOptions("test-page-token", "page-123", "v27.0");
         var facebook = new FacebookGraphApiClient(httpClient, options);
-        var service = new FacebookPublishingService(
+        var publisher = new FacebookChannelPublisher(facebook, options);
+        var service = new CampaignPublishingService(
             factory.Services.GetRequiredService<IServiceScopeFactory>(),
-            facebook,
-            options,
-            factory.Services.GetRequiredService<ILogger<FacebookPublishingService>>());
+            [publisher],
+            factory.Services.GetRequiredService<ILogger<CampaignPublishingService>>());
 
         await service.PublishDueCampaignsAsync(CancellationToken.None);
     }

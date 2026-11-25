@@ -29,7 +29,7 @@ builder.Services.AddHttpClient<InstagramGraphApiClient>(client =>
 {
     client.BaseAddress = new Uri("https://graph.facebook.com/");
 });
-builder.Services.AddHostedService<InstagramPublishingService>();
+builder.Services.AddSingleton<ICampaignChannelPublisher, InstagramChannelPublisher>();
 
 var linkedInOptions = new LinkedInPublishingOptions(
     builder.Configuration["LinkedIn:AccessToken"],
@@ -43,7 +43,7 @@ builder.Services.AddHttpClient<LinkedInApiClient>(client =>
 {
     AllowAutoRedirect = false
 });
-builder.Services.AddHostedService<LinkedInPublishingService>();
+builder.Services.AddSingleton<ICampaignChannelPublisher, LinkedInChannelPublisher>();
 builder.Services.AddHostedService<CampaignExpirationService>();
 
 var facebookOptions = new FacebookPublishingOptions(
@@ -55,7 +55,7 @@ builder.Services.AddHttpClient<FacebookGraphApiClient>(client =>
 {
     client.BaseAddress = new Uri("https://graph.facebook.com/");
 });
-builder.Services.AddHostedService<FacebookPublishingService>();
+builder.Services.AddSingleton<ICampaignChannelPublisher, FacebookChannelPublisher>();
 
 var emailOptions = new EmailPublishingOptions(
     builder.Configuration["COC_API_EMAIL_SMTP_HOST"],
@@ -66,7 +66,8 @@ var emailOptions = new EmailPublishingOptions(
     builder.Configuration["COC_API_EMAIL_RECIPIENTS"]);
 builder.Services.AddSingleton(emailOptions);
 builder.Services.AddSingleton<EmailClient>();
-builder.Services.AddHostedService<EmailPublishingService>();
+builder.Services.AddSingleton<ICampaignChannelPublisher, EmailChannelPublisher>();
+builder.Services.AddHostedService<CampaignPublishingService>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
