@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using CoC_API.Context;
 using CoC_API.DTOs.Request;
 using CoC_API.Models;
@@ -7,11 +6,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
-namespace CoC_API.Endpoints;
+namespace CoC_API.Endpoints.Auth;
 
-public static class AuthEndpoints
+internal static class LoginEndpoint
 {
-    public static void MapAuthEndpoints(this WebApplication app)
+    public static void MapLoginEndpoint(this WebApplication app)
     {
         app.MapPost("/login", async (
             LoginRequest request,
@@ -80,33 +79,5 @@ public static class AuthEndpoints
                 caracteristics = user.caracteristics
             });
         }).AllowAnonymous().RequireRateLimiting("login-ip");
-
-        app.MapGet("/me", async (ClaimsPrincipal principal, CoC_DbContext db, CancellationToken cancellationToken) =>
-        {
-            var idValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!int.TryParse(idValue, out var userId))
-                return Results.Unauthorized();
-
-            var user = await db.Users.FindAsync([userId], cancellationToken);
-            if (user is null || !user.HasCharacteristic(UserCaracteristics.isActive))
-                return Results.Unauthorized();
-
-            return Results.Ok(new
-            {
-                id = user.id,
-                name = user.name,
-                email = user.email,
-                caracteristics = user.caracteristics
-            });
-        });
-
-        app.MapPost("/logout", async (HttpContext context, UserSessionStore sessions) =>
-        {
-            await sessions.RevokeSessionAsync(
-                context.User.FindFirst(UserClaimsPrincipalFactory.SessionIdClaimType)?.Value,
-                context.RequestAborted);
-            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return Results.NoContent();
-        });
     }
 }

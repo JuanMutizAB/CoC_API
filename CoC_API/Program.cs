@@ -1,6 +1,8 @@
 using System.Threading.RateLimiting;
 using CoC_API.Context;
-using CoC_API.Endpoints;
+using CoC_API.Endpoints.Auth;
+using CoC_API.Endpoints.Campaigns;
+using CoC_API.Endpoints.Users;
 using CoC_API.Models;
 using CoC_API.Security;
 using CoC_API.Services;
