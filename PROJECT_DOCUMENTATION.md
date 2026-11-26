@@ -26,10 +26,12 @@ O **Cockpit of Comms (CoC)** é uma aplicação web de gestão, aprovação e pu
   - `UserSession.cs` — Sessão persistida em BD (guarda apenas hash SHA-256 do token).
   - `Enums.cs` — `CampaignStatus`, `CampaignType`, `UserCaracteristics`, `Motivo`.
 - `Context/CoC_DbContext.cs` — Mapeamento EF Core (`Users`, `Campaigns`, `UserSessions`).
-- `Endpoints/`
-  - `AuthEndpoints.cs` — `POST /login`, `GET /me`, `POST /logout`.
-  - `UserEndpoints.cs` — CRUD e desativação de utilizadores (`/users`).
-  - `CampaingEndPoints.cs` — Listagem, criação, edição, cancelamento e revisão/aprovação de campanhas (`/campaigns`).
+- `Endpoints/` — Um ficheiro por endpoint, agrupados por pasta; cada pasta tem um agregador (`Map*Endpoints`) chamado em `Program.cs`.
+  - `EndpointErrors.cs` — `FormatErrorMessage` partilhado (remove o sufixo `(Parameter '...')` das mensagens).
+  - `Auth/` — `AuthEndpoints.cs` (agregador), `LoginEndpoint.cs` (`POST /login`), `MeEndpoint.cs` (`GET /me`), `LogoutEndpoint.cs` (`POST /logout`).
+  - `Users/` — `UserEndpoints.cs` (agregador), `ListUsersEndpoint.cs`, `GetUserEndpoint.cs`, `CreateUserEndpoint.cs`, `EditUserEndpoint.cs`, `DeactivateUserEndpoint.cs` (`/users`).
+  - `Campaigns/` — `CampaignEndpoints.cs` (agregador), `CampaignAccess.cs` (`FindAuthenticatedUserAsync`, `CanViewCampaignAsync`, `IsReviewableCampaignAsync`), `ListCampaignsEndpoint.cs`, `GetCampaignEndpoint.cs`, `CreateCampaignEndpoint.cs`, `EditCampaignEndpoint.cs`, `CancelCampaignEndpoint.cs`, `GetCampaignMotivoEndpoint.cs` (`/campaigns`).
+    - `Review/` — `ApproveCampaignEndpoint.cs`, `RequestCampaignChangesEndpoint.cs`, `RejectCampaignEndpoint.cs` (`/campaigns/{id}/review/*`).
 - `DTOs/Request/` — Records imutáveis de entrada (`CreateCampaignRequest`, `EditCampaignRequest`, `CreateUserRequest`, `EditUserRequest`, `LoginRequest`, `MotivoRequest`, `RequestCampaignChangesRequest`).
 - `Security/` — `UserSessionStore.cs` e `UserClaimsPrincipalFactory.cs`.
 - `Integrations/` — Clientes e opções de publicação: `InstagramGraphApiClient`, `LinkedInApiClient`, `FacebookGraphApiClient`, `EmailClient` e respetivos `*PublishingOptions`.
@@ -180,6 +182,9 @@ Ao longo do desenvolvimento foram identificados e corrigidos os seguintes proble
       - Adicionado `AddRateLimiter()` (`login-ip`, 30 req/min por IP) em `Program.cs` e `.RequireRateLimiting("login-ip")` em `AuthEndpoints.cs`.
       - Criado `LoginLockoutService` (`CoC_API/Security/LoginLockoutService.cs`) com bloqueio de 5 min após 3 tentativas falhadas e escalonamento progressivo (`5 → 15 → 30 → 60` min) em falhas seguintes (`429 Too Many Requests` com `"Try again in X minutes."`).
       - No front-end (`useLoginController.js` e `LoginView.jsx`), o botão `Login` fica desativado durante o período de bloqueio e exibe a mensagem recebida.
+13. **Divisão dos ficheiros de endpoints ("lipoaspiração"):**
+    - **Problema:** todas as rotas estavam concentradas em 3 ficheiros (`AuthEndpoints.cs`, `UserEndpoints.cs` e `CampaingEndPoints.cs`, este último com ~400 linhas), com `FormatErrorMessage` duplicado.
+    - **Solução:** reorganização sem alterar comportamento — um ficheiro por endpoint em `Endpoints/Auth/`, `Endpoints/Users/` e `Endpoints/Campaigns/` (revisão em `Campaigns/Review/`), helpers de acesso a campanhas em `CampaignAccess.cs`, `FormatErrorMessage` único em `EndpointErrors.cs` e `CampaingEndPoints` renomeado para `CampaignEndpoints`. Rotas, autorização e respostas mantêm-se iguais.
 
 ---
 
@@ -194,7 +199,7 @@ Ao longo do desenvolvimento foram identificados e corrigidos os seguintes proble
 ### 7.2. Programação Orientada a Objetos (`CoC_API`)
 | Problema | Onde está | Solução Recomendada |
 | :--- | :--- | :--- |
-| **Endpoints gordos e entidades EF expostas diretamente** | `CampaingEndPoints.cs`, `UserEndpoints.cs` | Extrair Application Services (`CampaignService`, `UserService`), renomear `CampaingEndPoints.cs` → `CampaignEndpoints.cs` e devolver Response DTOs explícitos. |
+| **Lógica de negócio nos endpoints e entidades EF expostas diretamente** | `Endpoints/Campaigns/`, `Endpoints/Users/` | Extrair Application Services (`CampaignService`, `UserService`) e devolver Response DTOs explícitos. |
 
 ### 7.3. Boas Práticas de React (`CoC_front`)
 | Problema | Onde está | Solução Recomendada |
@@ -207,7 +212,7 @@ Ao longo do desenvolvimento foram identificados e corrigidos os seguintes proble
 ### 7.4. Escalabilidade
 | Problema | Onde está | Solução Recomendada |
 | :--- | :--- | :--- |
-| **Sem paginação (`ToListAsync()` carrega tabelas inteiras)** | `CampaingEndPoints.cs`, `UserEndpoints.cs`, `UserSessionStore.cs` | Implementar paginação e filtros server-side (`?page=&pageSize=`) e limpar sessões expiradas com `ExecuteDeleteAsync()`. |
+| **Sem paginação (`ToListAsync()` carrega tabelas inteiras)** | `ListCampaignsEndpoint.cs`, `ListUsersEndpoint.cs`, `UserSessionStore.cs` | Implementar paginação e filtros server-side (`?page=&pageSize=`) e limpar sessões expiradas com `ExecuteDeleteAsync()`. |
 | **Falta de índices na BD** | `CoC_DbContext.cs` | Criar coluna `NormalizedEmail` com índice `UNIQUE`, índice composto `(Status, PublicationDate)` e índice em `Campaigns.UserId`. |
 | **2 queries à BD em cada pedido HTTP** | `Program.cs` (`OnValidatePrincipal`) | Introduzir cache de curta duração (Redis ou `IMemoryCache`) com invalidação no logout/desativação. |
 | **Workers acoplados à API + contenção multi-canal** | `CoC_API/Services/` | Normalizar publicações numa tabela filha `CampaignChannelPublications` (1 linha por canal, com tentativas e `LastError`), usar **Polly / `Microsoft.Extensions.Http.Resilience`** para retries, e separar workers num **Worker Service** (ou Hangfire/Quartz.NET) antes de escalar horizontalmente. |
