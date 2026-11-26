@@ -19,6 +19,7 @@ export default function LoginView() {
     formStatus,
     statusRole,
     isSubmitting,
+    isLockedOut,
     emailInputRef,
     handleSubmit,
   } = useLoginController();
@@ -93,7 +94,11 @@ export default function LoginView() {
             </span>
           </div>
 
-          <button className="login-button" type="submit" disabled={isSubmitting}>
+          <button
+            className="login-button"
+            type="submit"
+            disabled={isSubmitting || isLockedOut}
+          >
             {isSubmitting ? "Logging in..." : "Login"}
           </button>
           <p

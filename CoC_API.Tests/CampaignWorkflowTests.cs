@@ -1173,6 +1173,62 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync($"/users/{UserIds.StandardOwner}")).StatusCode);
     }
 
+    [Fact]
+    public async Task LoginLocksOutAfterThreeFailedAttemptsAndEscalatesDuration()
+    {
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            HandleCookies = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        const string targetEmail = "lockout.test@example.com";
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            var failed = await client.PostAsJsonAsync(
+                "/login",
+                new { email = targetEmail, password = "WrongPassword123!" });
+            Assert.Equal(HttpStatusCode.Unauthorized, failed.StatusCode);
+        }
+
+        var thirdFailure = await client.PostAsJsonAsync(
+            "/login",
+            new { email = targetEmail, password = "WrongPassword123!" });
+        Assert.Equal(HttpStatusCode.TooManyRequests, thirdFailure.StatusCode);
+        var body = await thirdFailure.Content.ReadFromJsonAsync<LockoutErrorResponse>();
+        Assert.NotNull(body);
+        Assert.Equal("Try again in 5 minutes.", body.Erro);
+        Assert.Equal(300, body.RetryAfterSeconds);
+
+        var fakeTime = new TestTimeProvider(DateTimeOffset.UtcNow);
+        var lockoutService = new CoC_API.Security.LoginLockoutService(fakeTime);
+        Assert.False(lockoutService.RecordFailure("USER@EXAMPLE.COM").IsLocked);
+        Assert.False(lockoutService.RecordFailure("USER@EXAMPLE.COM").IsLocked);
+        var firstLock = lockoutService.RecordFailure("USER@EXAMPLE.COM");
+        Assert.True(firstLock.IsLocked);
+        Assert.Equal("Try again in 5 minutes.", firstLock.Message);
+        Assert.Equal(300, firstLock.RetryAfterSeconds);
+
+        fakeTime.Advance(TimeSpan.FromMinutes(5));
+        var secondLock = lockoutService.RecordFailure("USER@EXAMPLE.COM");
+        Assert.True(secondLock.IsLocked);
+        Assert.Equal("Try again in 15 minutes.", secondLock.Message);
+        Assert.Equal(900, secondLock.RetryAfterSeconds);
+
+        fakeTime.Advance(TimeSpan.FromMinutes(15));
+        lockoutService.Reset("USER@EXAMPLE.COM");
+        Assert.False(lockoutService.CheckStatus("USER@EXAMPLE.COM").IsLocked);
+    }
+
+    private sealed record LockoutErrorResponse(string Erro, int RetryAfterSeconds);
+
+    private sealed class TestTimeProvider(DateTimeOffset initialUtc) : TimeProvider
+    {
+        private DateTimeOffset currentUtc = initialUtc;
+        public override DateTimeOffset GetUtcNow() => currentUtc;
+        public void Advance(TimeSpan duration) => currentUtc = currentUtc.Add(duration);
+    }
+
     private async Task<HttpClient> LoginAsync(string email, string password)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions

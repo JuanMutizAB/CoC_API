@@ -17,15 +17,43 @@ export function useLoginController() {
   const [formStatus, setFormStatus] = useState("");
   const [statusRole, setStatusRole] = useState("status");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lockedUntilMs, setLockedUntilMs] = useState(null);
   const emailInputRef = useRef(null);
+
+  const isLockedOut = Boolean(lockedUntilMs && lockedUntilMs > Date.now());
 
   useEffect(() => {
     document.title = "CoC - Login";
   }, []);
 
+  useEffect(() => {
+    if (!lockedUntilMs) {
+      return undefined;
+    }
+
+    const remainingMs = lockedUntilMs - Date.now();
+    if (remainingMs <= 0) {
+      setLockedUntilMs(null);
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setLockedUntilMs(null);
+    }, remainingMs);
+
+    return () => window.clearTimeout(timerId);
+  }, [lockedUntilMs]);
+
+  const handleEmailChange = (value) => {
+    setEmail(value);
+    if (lockedUntilMs) {
+      setLockedUntilMs(null);
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (isSubmitting) {
+    if (isSubmitting || isLockedOut) {
       return;
     }
 
@@ -61,6 +89,14 @@ export function useLoginController() {
       navigate(target, { replace: true });
     } catch (error) {
       setStatusRole("alert");
+      if (error?.status === 429) {
+        const retryAfterSeconds = Number(error?.payload?.retryAfterSeconds);
+        const lockoutMs =
+          Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+            ? retryAfterSeconds * 1000
+            : 5 * 60 * 1000;
+        setLockedUntilMs(Date.now() + lockoutMs);
+      }
       setFormStatus(error?.message || "Invalid credentials.");
     } finally {
       setIsSubmitting(false);
@@ -69,7 +105,7 @@ export function useLoginController() {
 
   return {
     email,
-    setEmail,
+    setEmail: handleEmailChange,
     password,
     setPassword,
     emailError,
@@ -77,6 +113,7 @@ export function useLoginController() {
     formStatus,
     statusRole,
     isSubmitting,
+    isLockedOut,
     emailInputRef,
     handleSubmit,
   };

@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using CoC_API.Context;
 using CoC_API.Endpoints;
 using CoC_API.Models;
@@ -7,6 +8,7 @@ using CoC_API.Integrations;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,7 +20,33 @@ builder.Services.AddDbContext<CoC_DbContext>(options =>
 // Permitem gerar a descrição dos endpoints e mostrar o Swagger UI.
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<LoginLockoutService>();
 builder.Services.AddScoped<UserSessionStore>();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { erro = "Too many login requests. Try again later." },
+            cancellationToken);
+    };
+    options.AddPolicy("login-ip", httpContext =>
+    {
+        if (builder.Environment.IsEnvironment("Testing"))
+            return RateLimitPartition.GetNoLimiter("testing");
+
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        });
+    });
+});
 var instagramOptions = new InstagramPublishingOptions(
     builder.Configuration["COC_API_INSTAGRAM_ACCESS_TOKEN"],
     builder.Configuration["COC_API_INSTAGRAM_USER_ID"],
@@ -166,6 +194,7 @@ if (app.Environment.IsDevelopment())
     // app.MapOpenApi();
 }
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

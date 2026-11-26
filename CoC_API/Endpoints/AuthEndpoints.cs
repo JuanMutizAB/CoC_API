@@ -17,12 +17,26 @@ public static class AuthEndpoints
             LoginRequest request,
             HttpContext context,
             CoC_DbContext db,
-            UserSessionStore sessions) =>
+            UserSessionStore sessions,
+            LoginLockoutService lockouts) =>
         {
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
                 return Results.BadRequest(new { erro = "Email and password are required." });
 
             var normalizedEmail = request.Email.Trim().ToUpperInvariant();
+            var currentLock = lockouts.CheckStatus(normalizedEmail);
+            if (currentLock.IsLocked)
+            {
+                context.Response.Headers.RetryAfter = currentLock.RetryAfterSeconds.ToString();
+                return Results.Json(
+                    new
+                    {
+                        erro = currentLock.Message,
+                        retryAfterSeconds = currentLock.RetryAfterSeconds
+                    },
+                    statusCode: StatusCodes.Status429TooManyRequests);
+            }
+
             var user = await db.Users.FirstOrDefaultAsync(
                 candidate => candidate.email.ToUpper() == normalizedEmail,
                 context.RequestAborted);
@@ -30,8 +44,23 @@ public static class AuthEndpoints
                 || !user.CheckPassword(request.Password)
                 || !user.HasCharacteristic(UserCaracteristics.isActive))
             {
+                var failureLock = lockouts.RecordFailure(normalizedEmail);
+                if (failureLock.IsLocked)
+                {
+                    context.Response.Headers.RetryAfter = failureLock.RetryAfterSeconds.ToString();
+                    return Results.Json(
+                        new
+                        {
+                            erro = failureLock.Message,
+                            retryAfterSeconds = failureLock.RetryAfterSeconds
+                        },
+                        statusCode: StatusCodes.Status429TooManyRequests);
+                }
+
                 return Results.Json(new { erro = "Invalid credentials." }, statusCode: StatusCodes.Status401Unauthorized);
             }
+
+            lockouts.Reset(normalizedEmail);
 
             if (db.ChangeTracker.HasChanges())
                 await db.SaveChangesAsync(context.RequestAborted);
@@ -50,7 +79,7 @@ public static class AuthEndpoints
                 email = user.email,
                 caracteristics = user.caracteristics
             });
-        }).AllowAnonymous();
+        }).AllowAnonymous().RequireRateLimiting("login-ip");
 
         app.MapGet("/me", async (ClaimsPrincipal principal, CoC_DbContext db, CancellationToken cancellationToken) =>
         {
