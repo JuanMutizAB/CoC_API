@@ -174,6 +174,12 @@ Ao longo do desenvolvimento foram identificados e corrigidos os seguintes proble
 11. **Restrição de acesso a `GET /users` e `GET /users/{id}` apenas para `Admin`:**
     - **Problema:** qualquer utilizador autenticado (mesmo não-Admin) conseguia ler a lista e os dados pessoais/NIF de todos os utilizadores via `GET /users` e `GET /users/{id}`.
     - **Solução:** adicionada autorização `.RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)))` a ambos os endpoints em `CoC_API/Endpoints/UserEndpoints.cs`.
+12. **Rate Limiting e Lockout progressivo em `/login`:**
+    - **Problema:** `POST /login` não tinha proteção contra força bruta.
+    - **Solução:**
+      - Adicionado `AddRateLimiter()` (`login-ip`, 30 req/min por IP) em `Program.cs` e `.RequireRateLimiting("login-ip")` em `AuthEndpoints.cs`.
+      - Criado `LoginLockoutService` (`CoC_API/Security/LoginLockoutService.cs`) com bloqueio de 5 min após 3 tentativas falhadas e escalonamento progressivo (`5 → 15 → 30 → 60` min) em falhas seguintes (`429 Too Many Requests` com `"Try again in X minutes."`).
+      - No front-end (`useLoginController.js` e `LoginView.jsx`), o botão `Login` fica desativado durante o período de bloqueio e exibe a mensagem recebida.
 
 ---
 
@@ -182,7 +188,6 @@ Ao longo do desenvolvimento foram identificados e corrigidos os seguintes proble
 ### 7.1. Segurança (Prioridade Crítica)
 | Problema | Onde está | Solução Recomendada |
 | :--- | :--- | :--- |
-| **Sem Rate Limiting em `/login`** | `CoC_API/Endpoints/AuthEndpoints.cs` | Configurar `AddRateLimiter()` do ASP.NET Core em `/login` e lockout temporário contra força bruta. |
 | **Possível SSRF em `ImageUrl`** | `CoC_API/Integrations/` & `Campaign.cs` | Validar HTTPS e bloquear IPs privados/loopback/link-local (`127.0.0.1`, `169.254.169.254`, etc.) no back-end. |
 | **Credenciais expostas em texto durante testes** | User Secrets locais | Rodar/regenerar password SQL, tokens Meta/LinkedIn e chave SMTP antes de ir para produção. |
 
