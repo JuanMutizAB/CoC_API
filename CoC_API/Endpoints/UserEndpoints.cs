@@ -10,13 +10,14 @@ public static class UserEndpoints
 {
     public static void MapUserEndpoints(this WebApplication app)
     {
-        app.MapGet("/users", async (CoC_DbContext db) => Results.Ok(await db.Users.ToListAsync()));
+        app.MapGet("/users", async (CoC_DbContext db) => Results.Ok(await db.Users.ToListAsync()))
+            .RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
 
         app.MapGet("/users/{id:int}", async (int id, CoC_DbContext db) =>
         {
             var user = await db.Users.FindAsync(id);
             return user is null ? Results.NotFound() : Results.Ok(user);
-        });
+        }).RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)));
 
         app.MapPut("/users/{id:int}", async (int id, EditUserRequest request, CoC_DbContext db) =>
         {

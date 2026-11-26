@@ -1157,6 +1157,22 @@ public sealed class CampaignWorkflowTests : IAsyncLifetime
         using var secondLogin = await LoginAsync("standard@example.com", "StandardPass123!");
     }
 
+    [Fact]
+    public async Task UsersReadEndpointsRequireAdminRole()
+    {
+        using var standard = await LoginAsync("standard@example.com", "StandardPass123!");
+        using var reviewer = await LoginAsync("reviewer@example.com", "ReviewerPass123!");
+        using var admin = await LoginAsync("admin@example.com", "AdminPass123!");
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await standard.GetAsync("/users")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await standard.GetAsync($"/users/{UserIds.Admin}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await reviewer.GetAsync("/users")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await reviewer.GetAsync($"/users/{UserIds.StandardOwner}")).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/users")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync($"/users/{UserIds.StandardOwner}")).StatusCode);
+    }
+
     private async Task<HttpClient> LoginAsync(string email, string password)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions

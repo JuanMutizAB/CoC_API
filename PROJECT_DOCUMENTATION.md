@@ -171,6 +171,9 @@ Ao longo do desenvolvimento foram identificados e corrigidos os seguintes proble
 10. **Hashing seguro de passwords com `PasswordHasher<User>` (PBKDF2 com salt):**
     - **Problema:** `User.HashPassword` usava SHA-256 simples sem salt, vulnerável a força bruta e rainbow tables.
     - **Solução:** substituído por `PasswordHasher<User>` (`Microsoft.AspNetCore.Identity`) em `CoC_API/Models/User.cs`, com migração transparente de hashes SHA-256 legados para PBKDF2 no momento do login em `AuthEndpoints.cs`.
+11. **Restrição de acesso a `GET /users` e `GET /users/{id}` apenas para `Admin`:**
+    - **Problema:** qualquer utilizador autenticado (mesmo não-Admin) conseguia ler a lista e os dados pessoais/NIF de todos os utilizadores via `GET /users` e `GET /users/{id}`.
+    - **Solução:** adicionada autorização `.RequireAuthorization(policy => policy.RequireRole(nameof(UserCaracteristics.Admin)))` a ambos os endpoints em `CoC_API/Endpoints/UserEndpoints.cs`.
 
 ---
 
@@ -179,7 +182,6 @@ Ao longo do desenvolvimento foram identificados e corrigidos os seguintes proble
 ### 7.1. Segurança (Prioridade Crítica)
 | Problema | Onde está | Solução Recomendada |
 | :--- | :--- | :--- |
-| **`GET /users` e `GET /users/{id}` acessíveis a não-Admins** | `CoC_API/Endpoints/UserEndpoints.cs` | Adicionar `.RequireAuthorization(p => p.RequireRole(nameof(UserCaracteristics.Admin)))` em ambos os endpoints. |
 | **Sem Rate Limiting em `/login`** | `CoC_API/Endpoints/AuthEndpoints.cs` | Configurar `AddRateLimiter()` do ASP.NET Core em `/login` e lockout temporário contra força bruta. |
 | **Possível SSRF em `ImageUrl`** | `CoC_API/Integrations/` & `Campaign.cs` | Validar HTTPS e bloquear IPs privados/loopback/link-local (`127.0.0.1`, `169.254.169.254`, etc.) no back-end. |
 | **Credenciais expostas em texto durante testes** | User Secrets locais | Rodar/regenerar password SQL, tokens Meta/LinkedIn e chave SMTP antes de ir para produção. |
